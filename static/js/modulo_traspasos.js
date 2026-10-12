@@ -438,11 +438,14 @@
                 return;
             }
 
+            btn.dataset.guardando = '1';
             const totalPiezas = partidasTraspaso.reduce((a, b) => a + b.cantidad, 0);
             const confirmar = confirm(`¿Guardar Traspaso de salida con Folio "${folio}" por un total de ${partidasTraspaso.length} partidas (${totalPiezas} piezas)?\n\nSe descontarán las existencias inmediatamente en Microsip.`);
-            if (!confirmar) return;
+            if (!confirmar) {
+                btn.dataset.guardando = '0';
+                return;
+            }
 
-            btn.dataset.guardando = '1';
             btn.disabled = true;
             btn.classList.add('opacity-50', 'pointer-events-none');
             actualizarProgreso(40, 'Guardando movimiento en Microsip...', 'Actualizando inventarios...');
@@ -515,7 +518,7 @@
                     const tckTexto = document.getElementById('tckImpresionTexto');
                     if (impInfo.ejecutada) {
                         tckBadge.className = "bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl px-3 py-2 text-[11px] font-bold flex items-center gap-2";
-                        tckTexto.innerHTML = `Ticket impreso automáticamente en <strong>POS-80C</strong>`;
+                        tckTexto.innerHTML = `Ticket impreso automáticamente en <strong>POS-80C</strong> (Original y Copia)`;
                     } else {
                         tckBadge.className = "bg-amber-50 text-amber-800 border border-amber-200 rounded-xl px-3 py-2 text-[11px] font-bold flex items-center gap-2";
                         tckTexto.innerHTML = `Aviso de impresora: ${impInfo.mensaje || 'Compruebe conexión de POS-80C'}`;
@@ -572,6 +575,10 @@
                     };
 
                     document.getElementById('ticketModal').classList.remove('hidden');
+                    setTimeout(() => {
+                        const btnCerrar = document.getElementById('btnCerrarTicketModal');
+                        if (btnCerrar) btnCerrar.focus();
+                    }, 80);
                 } else {
                     // Traspaso de Sucursal a Sucursal o de Sucursal a CEDIS:
                     // NO se imprime ticket, únicamente se entrega el folio
@@ -614,34 +621,66 @@
             actualizarFolioSugerido();
         };
 
-        let ultimoTraspasoParaTicket = null;
-
-        async function reimprimirTicketPos80() {
+        window.confirmarReimpresionPos80 = async function() {
             if (!ultimoTraspasoParaTicket) {
-                alert("No hay datos de traspaso para reimprimir.");
+                mostrarAlerta('warn', 'No hay datos de traspaso para reimprimir.');
                 return;
             }
             const btn = document.getElementById('btnReimprimirPos80');
-            const textoOriginal = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = `<span class="animate-spin inline-block mr-1">⌛</span> Imprimiendo...`;
+            if (btn && btn.disabled) return;
+
+            const confirmar = confirm(
+                `El ticket de este traspaso ya fue enviado automáticamente a la impresora POS-80C.\n\n` +
+                `¿Deseas enviar una reimpresión?\n(Solo es necesario si la impresora se quedó sin papel o hubo un fallo físico).`
+            );
+            if (!confirmar) return;
+
+            await reimprimirTicketPos80(true);
+        };
+
+        window.reimprimirTicketPos80 = async function(forzar = false) {
+            if (!ultimoTraspasoParaTicket) {
+                mostrarAlerta('warn', 'No hay datos de traspaso para reimprimir.');
+                return;
+            }
+            const btn = document.getElementById('btnReimprimirPos80');
+            const textoOriginal = btn ? btn.innerHTML : 'Reimprimir';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<span class="animate-spin inline-block mr-1">⌛</span> Imprimiendo...`;
+            }
+
             try {
                 const res = await fetch('/api/traspasos/reimprimir-ticket', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(ultimoTraspasoParaTicket)
+                    body: JSON.stringify({ ...ultimoTraspasoParaTicket, forzar: forzar })
                 });
                 const data = await res.json();
                 if (data.success) {
-                    mostrarAlerta('success', '✓ ' + (data.mensaje || 'Ticket reimpreso correctamente en POS-80C (2 copias)'));
+                    mostrarAlerta('success', '✓ ' + (data.mensaje || 'Ticket enviado a POS-80C'));
                 } else {
                     mostrarAlerta('error', 'Aviso al imprimir en POS-80C: ' + (data.mensaje || 'Verifique la impresora'));
                 }
             } catch (e) {
                 mostrarAlerta('error', 'Error al comunicarse con la impresora POS-80C: ' + e.message);
             } finally {
-                btn.disabled = false;
-                btn.innerHTML = textoOriginal;
+                if (btn) {
+                    let segundos = 10;
+                    btn.disabled = true;
+                    btn.classList.add('opacity-60', 'cursor-not-allowed');
+                    const timer = setInterval(() => {
+                        segundos--;
+                        if (segundos <= 0) {
+                            clearInterval(timer);
+                            btn.disabled = false;
+                            btn.classList.remove('opacity-60', 'cursor-not-allowed');
+                            btn.innerHTML = textoOriginal;
+                        } else {
+                            btn.innerHTML = `Espera (${segundos}s)`;
+                        }
+                    }, 1000);
+                }
             }
-        }
+        };
 

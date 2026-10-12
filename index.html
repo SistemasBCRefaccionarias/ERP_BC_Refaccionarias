@@ -5562,12 +5562,13 @@
             </div>
 
             <div class="flex items-center gap-2 pt-2">
-                <button type="button" id="btnReimprimirPos80" onclick="reimprimirTicketPos80()" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                    Reimprimir en POS-80C
+                <button type="button" id="btnCerrarTicketModal" onclick="cerrarTicketModal()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    Aceptar y Continuar
                 </button>
-                <button type="button" onclick="cerrarTicketModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs">
-                    Cerrar
+                <button type="button" id="btnReimprimirPos80" onclick="confirmarReimpresionPos80()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 border border-slate-300 shadow-xs cursor-pointer transition" title="Utilizar únicamente si la impresora falló o se quedó sin papel">
+                    <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    Reimprimir
                 </button>
             </div>
         </div>
@@ -6893,12 +6894,12 @@
     <script src="/static/js/modulo_ventas.js?v=20261012_v1"></script>
     <script src="/static/js/modulo_pv.js?v=20261012_v1"></script>
     <script src="/static/js/modulo_administracion.js?v=20261009_v6"></script>
-    <script src="/static/js/modulo_almacen.js?v=20261012_v1"></script>
+    <script src="/static/js/modulo_almacen.js?v=20261012_v2"></script>
     <script src="/static/js/modulo_embarques.js?v=20261012_v3"></script>
     <script src="/static/js/modulo_compras.js?v=20261012_v1"></script>
     <script src="/static/js/modulo_ciosa.js?v=20261009_v6"></script>
-    <script src="/static/js/modulo_traspasos.js?v=20261009_v6"></script>
-    <script src="/static/js/modulo_buscador_traspasos.js?v=20261009_v6"></script>
+    <script src="/static/js/modulo_traspasos.js?v=20261012_v2"></script>
+    <script src="/static/js/modulo_buscador_traspasos.js?v=20261012_v2"></script>
     <script src="/static/js/modulo_buscador_articulos.js?v=20261009_v6"></script>
     <script src="/static/js/modulo_resurtidos.js?v=20261009_v6"></script>
     <script src="/static/js/modulo_bot_whatsapp.js?v=20261009_v6"></script>

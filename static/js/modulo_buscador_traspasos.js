@@ -311,23 +311,31 @@
         };
 
         window.reimprimirTraspasoDirecto = async function(doctoId, btn) {
+            if (btn.disabled) return;
+            const confirmar = confirm("¿Deseas imprimir el ticket térmico de este traspaso en la POS-80C?");
+            if (!confirmar) return;
+
             const htmlOriginal = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = `<span class="animate-spin inline-block mr-1">⌛</span> Imprimiendo...`;
 
             try {
-                const res = await fetch(`/api/traspasos/reimprimir-id/${doctoId}`, { method: 'POST' });
+                const res = await fetch(`/api/traspasos/reimprimir-id/${doctoId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ forzar: true })
+                });
                 const data = await res.json();
 
                 if (data.success) {
                     btn.className = "bg-emerald-600 text-white font-bold px-2.5 py-1.5 rounded-lg text-[10px] flex items-center gap-1 shadow-sm transition";
-                    btn.innerHTML = `<span>✓</span> Impreso (2 copias)`;
-                    mostrarAlerta('success', `✓ Folio ${data.folio || ''}: Ticket reimpreso exitosamente en POS-80C (2 copias).`);
+                    btn.innerHTML = `<span>✓</span> Impreso`;
+                    mostrarAlerta('success', `✓ Folio ${data.folio || ''}: ${data.mensaje || 'Ticket enviado a POS-80C'}`);
                     setTimeout(() => {
                         btn.className = "bg-slate-900 hover:bg-slate-800 text-white font-bold px-2.5 py-1.5 rounded-lg text-[10px] flex items-center gap-1 shadow-sm transition cursor-pointer";
                         btn.disabled = false;
                         btn.innerHTML = htmlOriginal;
-                    }, 2500);
+                    }, 5000);
                 } else {
                     btn.disabled = false;
                     btn.innerHTML = htmlOriginal;

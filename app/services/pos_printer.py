@@ -5,6 +5,7 @@ import unicodedata
 import ctypes
 from ctypes import wintypes
 import datetime
+import threading
 
 class DOC_INFO_1_PRN(ctypes.Structure):
     _fields_ = [
@@ -217,13 +218,33 @@ def _enviar_raw_a_spooler(ticket_bytes, printer_name, doc_title="Ticket Traspaso
     except Exception as e_spool:
         return False, f"Spooler error: {e_spool}"
 
-def imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=1):
+_HISTORIAL_IMPRESIONES_FOLIO = {}
+_HISTORIAL_LOCK = threading.Lock()
+DEDUP_WINDOW_SECONDS = 15
+
+def imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=1, folio=None, forzar=False):
     """
-    Envía la impresión del ticket a la impresora térmica POS-80C.
-    Por defecto imprime 1 juego de ticket (copias=1) para evitar duplicación.
+    Envía la impresión del ticket a la impresora térmica POS-80C (192.168.1.225:9100).
+    Por defecto imprime 1 juego de tickets (copias=1) para evitar duplicación.
+    Incluye protección de deduplicación automática si se solicita reimpresión
+    del mismo folio en menos de 15 segundos sin confirmación explícita (forzar=True).
     """
+    if folio:
+        folio_norm = str(folio).strip().upper()
+        now_ts = time.time()
+        with _HISTORIAL_LOCK:
+            ultimo_ts = _HISTORIAL_IMPRESIONES_FOLIO.get(folio_norm, 0)
+            delta = now_ts - ultimo_ts
+            if not forzar and delta < DEDUP_WINDOW_SECONDS:
+                msg_dedup = f"Ticket de folio {folio_norm} ya enviado a POS-80C recientemente ({int(delta)}s atrás). Se evitó duplicado accidental."
+                print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [POS-80C] Deduplicación: {msg_dedup}")
+                return True, msg_dedup
+            _HISTORIAL_IMPRESIONES_FOLIO[folio_norm] = now_ts
+
     errores = []
     num_copias = max(1, int(copias or 1))
+    folio_txt = f" (Folio: {folio})" if folio else ""
+    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [POS-80C] Procesando impresión térmica{folio_txt} - {num_copias} juego(s)...")
 
     # 1. Intento vía Windows Spooler nativo
     try:
@@ -239,10 +260,14 @@ def imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=1):
                 time.sleep(0.6)
         
         if len(trabajos_ok) == num_copias:
-            copias_txt = "1 juego" if num_copias == 1 else f"{num_copias} copias"
-            return True, f"Ticket impreso correctamente ({copias_txt}) en '{printer_name}' ({', '.join(trabajos_ok)})"
+            copias_txt = "1 juego (Original y Copia)" if num_copias == 1 else f"{num_copias} copias"
+            msg_ok = f"Ticket impreso correctamente ({copias_txt}) en '{printer_name}' ({', '.join(trabajos_ok)})"
+            print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [POS-80C] Spooler OK: {msg_ok}")
+            return True, msg_ok
         elif len(trabajos_ok) > 0:
-            return True, f"Ticket impreso parcialmente ({len(trabajos_ok)}/{num_copias} copias) en '{printer_name}'"
+            msg_part = f"Ticket impreso parcialmente ({len(trabajos_ok)}/{num_copias} copias) en '{printer_name}'"
+            print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [POS-80C] Spooler parcial: {msg_part}")
+            return True, msg_part
     except Exception as e_spool:
         errores.append(f"Spooler error general: {e_spool}")
 
@@ -256,10 +281,13 @@ def imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=1):
             if c < num_copias:
                 time.sleep(0.6)
         s.close()
-        copias_txt = "1 juego" if num_copias == 1 else f"{num_copias} copias"
-        return True, f"Ticket impreso correctamente ({copias_txt}) vía IP directa 192.168.1.225:9100 (POS-80C)"
+        copias_txt = "1 juego (Original y Copia)" if num_copias == 1 else f"{num_copias} copias"
+        msg_sock = f"Ticket impreso correctamente ({copias_txt}) vía IP directa 192.168.1.225:9100 (POS-80C)"
+        print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [POS-80C] Socket IP OK: {msg_sock}")
+        return True, msg_sock
     except Exception as e_sock:
         errores.append(f"Socket IP error: {e_sock}")
+        print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [POS-80C] Error en socket directo 192.168.1.225: {e_sock}")
 
     return False, " / ".join(errores)
 

@@ -420,12 +420,19 @@
         }
 
         async function reimprimirTraspasoDesdeHistorial(doctoId) {
+            const confirmar = confirm("¿Deseas imprimir el ticket de este traspaso en la impresora POS-80C?");
+            if (!confirmar) return;
+
             try {
-                mostrarAlertaEscaner('info', 'Enviando trabajo de reimpresión a la impresora POS-80C...');
-                const res = await fetch(`/api/traspasos/reimprimir-id/${doctoId}`, { method: 'POST' });
+                mostrarAlertaEscaner('info', 'Enviando trabajo de impresión a la impresora POS-80C...');
+                const res = await fetch(`/api/traspasos/reimprimir-id/${doctoId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ forzar: true })
+                });
                 const data = await res.json();
                 if (data.success) {
-                    mostrarAlertaEscaner('success', `Ticket reimpreso correctamente en POS-80C (2 copias) (Folio: ${data.folio})`);
+                    mostrarAlertaEscaner('success', `✓ Folio ${data.folio}: ${data.mensaje || 'Ticket impreso en POS-80C'}`);
                     reproducirBeep(true);
                 } else {
                     mostrarAlertaEscaner('warn', `Aviso al reimprimir: ${data.mensaje}`);
