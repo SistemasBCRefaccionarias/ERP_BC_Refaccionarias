@@ -358,26 +358,88 @@ def get_dashboard_resumen():
         for s in sucursales_ventas:
             s["porcentaje"] = round((s["total_venta"] / total_venta_grupo * 100), 1) if total_venta_grupo > 0 else 0.0
 
-        # 2. Inventario total en piezas por almacén (usando tabla intermedia de alto rendimiento)
+        # 2. Utilidad de Venta (Margen Bruto) en el período
+        utilidad_venta = 0.0
+        costo_venta = 0.0
+        margen_utilidad_pct = 0.0
+        try:
+            cur.execute("""
+                SELECT 
+                    SUM(CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION)) AS VENTA_NETA,
+                    SUM(CAST(d.UNIDADES - COALESCE(d.UNIDADES_DEV, 0) AS DOUBLE PRECISION) * CAST(COALESCE(costos.COSTO_PROM, 0) AS DOUBLE PRECISION)) AS COSTO_VENTA_ESTIMADO
+                FROM DOCTOS_PV p
+                JOIN DOCTOS_PV_DET d ON d.DOCTO_PV_ID = p.DOCTO_PV_ID
+                LEFT JOIN (
+                    SELECT ARTICULO_ID, CAST(SUM(VALOR_TOTAL) AS DOUBLE PRECISION) / NULLIF(CAST(SUM(EXISTENCIA) AS DOUBLE PRECISION), 0) AS COSTO_PROM
+                    FROM CAPAS_COSTOS
+                    WHERE CAPA_AGOTADA = 'N' AND EXISTENCIA > 0
+                    GROUP BY ARTICULO_ID
+                ) costos ON costos.ARTICULO_ID = d.ARTICULO_ID
+                WHERE p.FECHA >= ? AND p.FECHA <= ?
+                  AND p.ESTATUS <> 'C'
+                  AND p.TIPO_DOCTO IN ('V', 'F')
+            """, (fecha_ini, fecha_fin))
+            r_util = cur.fetchone()
+            if r_util:
+                v_neta = float(r_util[0] or 0)
+                costo_venta = float(r_util[1] or 0)
+                utilidad_venta = v_neta - costo_venta
+                margen_utilidad_pct = round((utilidad_venta / v_neta * 100), 1) if v_neta > 0 else 0.0
+        except Exception as e_util:
+            print("Aviso al calcular utilidad de venta:", e_util)
+
+        # 3. Costo Total de Almacén (Valor de Inventario Existencia x Costo)
+        costo_inventario_total = 0.0
+        costos_por_almacen = {}
+        try:
+            cur.execute("""
+                SELECT 
+                    c.ALMACEN_ID,
+                    SUM(c.VALOR_TOTAL) AS COSTO_TOTAL
+                FROM CAPAS_COSTOS c
+                WHERE c.CAPA_AGOTADA = 'N'
+                GROUP BY c.ALMACEN_ID
+            """)
+            for r_c in cur.fetchall():
+                alm_id = int(r_c[0])
+                c_tot = float(r_c[1] or 0)
+                costos_por_almacen[alm_id] = c_tot
+                costo_inventario_total += c_tot
+        except Exception as e_cost:
+            print("Aviso al calcular costo de inventario:", e_cost)
+
+        # 4. SKUs / Ítems Activos en Catálogo
+        skus_activos = 0
+        try:
+            cur.execute("SELECT COUNT(*) FROM ARTICULOS WHERE ESTATUS = 'A'")
+            r_sku = cur.fetchone()
+            if r_sku:
+                skus_activos = int(r_sku[0] or 0)
+        except Exception as e_sku:
+            print("Aviso al contar SKUs activos:", e_sku)
+
+        # 5. Inventario total en piezas por almacén (usando tabla intermedia de alto rendimiento)
         from app.services.cache_service import obtener_resumen_almacenes
         res_alms = obtener_resumen_almacenes(empresa=current_dsn)
         almacenes_stock = []
         total_stock_piezas = 0
         for a in res_alms.get("almacenes", []):
             cant = int(a.get("piezas", 0))
+            alm_id = a["id"]
             if cant > 0:
                 total_stock_piezas += cant
                 almacenes_stock.append({
-                    "almacen_id": a["id"],
+                    "almacen_id": alm_id,
                     "nombre": a["nombre"],
-                    "existencia": cant
+                    "existencia": cant,
+                    "costo_total": round(costos_por_almacen.get(alm_id, 0.0), 2)
                 })
         for a in almacenes_stock:
             a["porcentaje"] = round((a["existencia"] / total_stock_piezas * 100), 1) if total_stock_piezas > 0 else 0.0
 
-        # 3. Top 10 Artículos: tanto por piezas vendidas (volumen) como por importe neto (ingresos)
+        # 6. Top Artículos (hasta 100 para permitir selector dinámico de Top 10, 15, 50, 100)
         cur.execute("""
-            SELECT FIRST 10
+            SELECT FIRST 100
                 COALESCE(TRIM(ca.CLAVE_ARTICULO), 'S/C') AS CLAVE,
                 TRIM(ar.NOMBRE) AS NOMBRE,
                 SUM(d.UNIDADES - COALESCE(d.UNIDADES_DEV, 0)) AS PIEZAS_VENDIDAS,
@@ -403,7 +465,7 @@ def get_dashboard_resumen():
             })
 
         cur.execute("""
-            SELECT FIRST 10
+            SELECT FIRST 100
                 COALESCE(TRIM(ca.CLAVE_ARTICULO), 'S/C') AS CLAVE,
                 TRIM(ar.NOMBRE) AS NOMBRE,
                 SUM(d.UNIDADES - COALESCE(d.UNIDADES_DEV, 0)) AS PIEZAS_VENDIDAS,
@@ -471,7 +533,12 @@ def get_dashboard_resumen():
                 "total_venta": total_venta_grupo,
                 "total_tickets": total_tickets_grupo,
                 "ticket_promedio": round(total_venta_grupo / total_tickets_grupo, 2) if total_tickets_grupo > 0 else 0.0,
+                "utilidad_venta": round(utilidad_venta, 2),
+                "costo_venta": round(costo_venta, 2),
+                "margen_utilidad_pct": margen_utilidad_pct,
+                "costo_inventario_total": round(costo_inventario_total, 2),
                 "total_stock_piezas": total_stock_piezas,
+                "skus_activos": skus_activos,
                 "sucursales_activas": len(sucursales_ventas),
                 "sucursal_lider": sucursal_lider,
                 "articulo_estrella": articulo_estrella,
@@ -501,7 +568,7 @@ def get_dashboard_resumen():
 @dashboard_bp.route('/api/dashboard/top-articulos', methods=['GET'])
 def get_top_articulos():
     periodo = request.args.get('periodo', 'mes_actual')
-    limit = min(50, max(5, int(request.args.get('limit', 20))))
+    limit = min(100, max(5, int(request.args.get('limit', 20))))
     current_dsn = get_current_dsn()
     cache_key = f"{current_dsn}_top_articulos_{periodo}_{limit}"
     cached = get_cached(cache_key)

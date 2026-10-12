@@ -17,6 +17,8 @@ config_empresas.json
 index.html.gz
 screenshot_*.png
 s25_*.png
+test_labelary*.png
+static/facturas_emitidas/*
 *.apk
 *.aab
 *.exe

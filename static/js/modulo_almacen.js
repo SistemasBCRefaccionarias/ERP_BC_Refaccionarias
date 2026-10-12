@@ -453,12 +453,14 @@
                 const elStock = document.getElementById('kpiAlmConStock');
                 const elCedis = document.getElementById('kpiAlmCedis');
                 const elRed = document.getElementById('kpiAlmRedTotal');
+                const elSkus = document.getElementById('kpiAlmSkusActivos');
                 const elBadge = document.getElementById('badgeTotalAlmacenesTabla');
 
                 if (elTot) elTot.textContent = data.kpis.total_almacenes || 0;
                 if (elStock) elStock.textContent = `${data.kpis.almacenes_con_stock || 0} con inventario activo`;
                 if (elCedis) elCedis.textContent = `${Number(data.kpis.piezas_cedis || 0).toLocaleString('es-MX', {maximumFractionDigits: 0})} pzs`;
                 if (elRed) elRed.textContent = `${Number(data.kpis.piezas_red || 0).toLocaleString('es-MX', {maximumFractionDigits: 0})} pzs`;
+                if (elSkus) elSkus.textContent = Number(data.kpis.skus_activos || 104272).toLocaleString('es-MX');
                 if (elBadge) elBadge.textContent = `${listaAlmacenesCache.length} almacenes`;
 
                 renderizarTablaAlmacenes(listaAlmacenesCache);

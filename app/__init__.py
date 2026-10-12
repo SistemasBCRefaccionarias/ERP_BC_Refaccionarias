@@ -22,6 +22,7 @@ from app.routes.vendedores_routes import vendedores_bp
 from app.routes.cascos_routes import cascos_bp
 from app.routes.embarques_routes import embarques_bp
 from app.routes.nominas_routes import nominas_bp
+from app.routes.facturacion_routes import facturacion_bp
 
 def _obtener_secret_key():
     env_secret = os.environ.get("FLASK_SECRET_KEY")
@@ -89,13 +90,14 @@ def create_app():
     app.register_blueprint(cascos_bp)
     app.register_blueprint(embarques_bp)
     app.register_blueprint(nominas_bp)
+    app.register_blueprint(facturacion_bp)
 
     @app.before_request
     def verificar_seguridad_api():
         from flask import request, session, jsonify
         # Rutas de la API que requieren autenticación estricta
         if request.path.startswith('/api/'):
-            # Rutas públicas indispensables para el flujo de login y arranque
+            # Rutas públicas indispensables para el flujo de login, facturación de clientes y app móvil
             rutas_publicas = [
                 '/api/login',
                 '/api/logout',
@@ -103,7 +105,15 @@ def create_app():
                 '/api/empresas',
                 '/api/config/menu-modulos'
             ]
-            if request.path not in rutas_publicas and not any(request.path.startswith(r) for r in ['/api/empresas', '/api/logo', '/api/articulos/foto']):
+            rutas_prefijo_publico = [
+                '/api/empresas',
+                '/api/logo',
+                '/api/articulos/foto',
+                '/api/facturacion',
+                '/api/embarques/sucursal/recibir',
+                '/api/embarques/escanear-mensajero'
+            ]
+            if request.path not in rutas_publicas and not any(request.path.startswith(r) for r in rutas_prefijo_publico):
                 if 'usuario' not in session:
                     return jsonify({
                         "success": False,

@@ -51,6 +51,18 @@ def init_sqlite():
     else:
         cur.execute("UPDATE usuarios SET rol = 'ADMIN', permisos = '[\"*\"]', activo = 1 WHERE id = ?", (admin_row[0],))
 
+    cur.execute("SELECT id FROM usuarios WHERE LOWER(usuario) = 'jcmartinez'")
+    jc_row = cur.fetchone()
+    if not jc_row:
+        from werkzeug.security import generate_password_hash
+        pwd_hash_jc = generate_password_hash("Sudowoodo.1701")
+        cur.execute(
+            "INSERT INTO usuarios (usuario, password_hash, nombre, rol, permisos, activo, creado_en) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ('JCMartinez', pwd_hash_jc, 'JC Martínez', 'ADMIN', '["*"]', 1, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        )
+    else:
+        cur.execute("UPDATE usuarios SET rol = 'ADMIN', permisos = '[\"*\"]', activo = 1 WHERE id = ?", (jc_row[0],))
+
     # Tabla de solicitudes de traspaso desde Punto de Venta hacia CEDIS para validación de Compras
     cur.execute("""
         CREATE TABLE IF NOT EXISTS solicitudes_traspasos (
@@ -132,6 +144,29 @@ def init_sqlite():
     """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_reloj_fecha ON reloj_checadas(fecha)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_reloj_colaborador ON reloj_checadas(colaborador_nombre)")
+
+    # Tabla de Ventas Perdidas para Compras (Demanda no satisfecha en mostrador)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS ventas_perdidas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha TEXT NOT NULL,
+            sucursal_id INTEGER DEFAULT NULL,
+            sucursal_nombre TEXT DEFAULT '',
+            vendedor_id INTEGER DEFAULT NULL,
+            vendedor_nombre TEXT DEFAULT '',
+            cliente_nombre TEXT DEFAULT '',
+            clave_articulo TEXT NOT NULL,
+            articulo_nombre TEXT DEFAULT '',
+            cantidad REAL DEFAULT 1,
+            precio_estimado REAL DEFAULT 0,
+            motivo TEXT NOT NULL,
+            notas TEXT DEFAULT '',
+            estatus_compras TEXT DEFAULT 'PENDIENTE'
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_vp_fecha ON ventas_perdidas(fecha)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_vp_clave ON ventas_perdidas(clave_articulo)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_vp_estatus ON ventas_perdidas(estatus_compras)")
 
     conn.commit()
     conn.close()

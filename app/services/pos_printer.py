@@ -1,3 +1,4 @@
+import os
 import socket
 import time
 import unicodedata
@@ -261,3 +262,260 @@ def imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=1):
         errores.append(f"Socket IP error: {e_sock}")
 
     return False, " / ".join(errores)
+
+def logo_a_tspl_bitmap(logo_path, max_width=270, max_height=95, x=245, y=28):
+    """
+    Convierte una imagen de logo PNG/JPG a un comando BITMAP monocromático de TSPL.
+    """
+    if not os.path.exists(logo_path):
+        return b''
+    try:
+        from PIL import Image
+        im = Image.open(logo_path)
+        if im.mode in ('RGBA', 'LA') or (im.mode == 'P' and 'transparency' in im.info):
+            bg = Image.new('RGB', im.size, (255, 255, 255))
+            if im.mode == 'RGBA':
+                bg.paste(im, mask=im.split()[3])
+            else:
+                bg.paste(im)
+            im = bg
+        else:
+            im = im.convert('RGB')
+        im.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+        w, h = im.size
+        w_bytes = (w + 7) // 8
+        w_pad = w_bytes * 8
+        if w_pad != w:
+            padded = Image.new('RGB', (w_pad, h), (255, 255, 255))
+            padded.paste(im, ((w_pad - w) // 2, 0))
+            im = padded
+            w = w_pad
+        # 0 = punto negro térmico quemado, 1 = punto blanco
+        im_bw = im.convert('L').point(lambda p: 0 if p < 170 else 1, mode='1')
+        raw_data = im_bw.tobytes()
+        return f"BITMAP {x}, {y}, {w_bytes}, {h}, 0, ".encode('ascii') + raw_data + b"\r\n"
+    except Exception as e:
+        print("Aviso al procesar logo para TSPL:", e)
+        return b''
+
+def generar_etiqueta_tspl_bytes(etiqueta_data):
+    """
+    Genera el stream de comandos TSPL para la impresora térmica Label TD-401.
+    Ajustado específicamente al ancho de rollo de 75-76mm (560 dots de ancho útil)
+    para evitar recortes en bordes, con inclusión de LOGO gráfico y separación limpia de Folio y Fecha.
+    """
+    from app.config import BASE_DIR
+    siglas = quitar_acentos(etiqueta_data.get('sucursal_siglas', 'AE')).strip().upper()[:4]
+    destino = quitar_acentos(etiqueta_data.get('destino', 'SUCURSAL DESTINO')).strip().upper()[:24]
+    empresa = quitar_acentos(etiqueta_data.get('nombre_empresa', 'BATTERY CENTER')).strip().upper()[:24]
+    folio = quitar_acentos(etiqueta_data.get('folio_caja', '10001-1')).strip().upper()[:16]
+    fecha = str(etiqueta_data.get('fecha_empaque', '') or etiqueta_data.get('fecha_hora', '') or '')[:10]
+    articulos = etiqueta_data.get('detalles', []) or etiqueta_data.get('resumen_articulos', [])
+    num_caja = etiqueta_data.get('numero_caja', 1)
+    tot_cajas = etiqueta_data.get('total_cajas', 1)
+    logo_tag = str(etiqueta_data.get('logo_tag', '')).lower()
+    es_rt = 'RT' in empresa.upper() or 'rt' in logo_tag
+
+    # 1. Configuración de rollo 75mm x 120mm
+    tspl = "SIZE 75 mm, 120 mm\r\n"
+    tspl += "GAP 3 mm, 0 mm\r\n"
+    tspl += "DIRECTION 1\r\n"
+    tspl += "CLS\r\n"
+
+    # Marco exterior: ancho útil 544 dots (de X=16 a X=560)
+    tspl += "BOX 16, 16, 560, 960, 4\r\n"
+
+    # División horizontal superior (Y = 280)
+    tspl += "BAR 16, 280, 544, 4\r\n"
+
+    # División vertical superior (X = 230, de Y = 16 a Y = 280)
+    tspl += "BAR 230, 16, 4, 264\r\n"
+
+    # --- CUADRANTE SUPERIOR IZQUIERDO: SIGLAS DESTINO ---
+    # Siglas gigantes (Font 5 escala 3x3)
+    tspl += f'TEXT 35, 35, "5", 0, 3, 3, "{siglas}"\r\n'
+    tspl += 'TEXT 25, 180, "1", 0, 1, 1, "DESTINO SUCURSAL:"\r\n'
+    tspl += f'TEXT 25, 205, "2", 0, 1, 1, "{destino[:16]}"\r\n'
+    tspl += f'TEXT 25, 238, "2", 0, 1, 1, "CAJA {num_caja} DE {tot_cajas}"\r\n'
+
+    # --- CUADRANTE SUPERIOR DERECHO: LOGO + DATOS FISCALES ---
+    # División interna entre logo y datos empresa (Y = 135)
+    tspl += "BAR 230, 135, 330, 3\r\n"
+
+    # Procesar archivo de logo oficial
+    logo_filename = "logo rt.png" if es_rt else "logo bc.png"
+    logo_path = os.path.join(BASE_DIR, logo_filename)
+    logo_bytes = logo_a_tspl_bitmap(logo_path, max_width=270, max_height=95, x=245, y=28)
+
+    # Si no se pudo cargar el archivo gráfico, poner texto de respaldo
+    if not logo_bytes:
+        tspl += f'TEXT 250, 45, "3", 0, 1, 1, "{empresa[:18]}"\r\n'
+        tspl += 'TEXT 250, 85, "2", 0, 1, 1, "REFACCIONARIAS"\r\n'
+
+    # Datos fiscales
+    empresa_sub = "RT REFACCIONES" if es_rt else "BATTERY CENTER REFACC."
+    tspl += f'TEXT 245, 148, "2", 0, 1, 1, "{empresa_sub[:24]}"\r\n'
+    tspl += 'TEXT 245, 178, "2", 0, 1, 1, "CEDIS Matriz Torreon, Coah."\r\n'
+    tspl += 'TEXT 245, 208, "2", 0, 1, 1, "RFC: BCR210815AAA"\r\n'
+    tspl += f'TEXT 245, 238, "1", 0, 1, 1, "EMPAQUE: {fecha}"\r\n'
+
+    # --- SECCIÓN MEDIA: ARTÍCULOS SIN CANTIDAD ---
+    tspl += 'TEXT 25, 296, "2", 0, 1, 1, "ARTICULOS - CODIGOS Y DESCRIPCION"\r\n'
+    tspl += 'TEXT 425, 300, "1", 0, 1, 1, "(SIN CANTID.)"\r\n'
+    tspl += "BAR 25, 322, 520, 2\r\n"
+
+    # Listado de artículos ajustados a 2 columnas con espacio holgado
+    y_art = 336
+    for art in articulos[:10]:
+        c_clave = quitar_acentos(art.get('clave', ''))[:11]
+        c_nom = quitar_acentos(art.get('nombre', ''))[:28]
+        tspl += f'TEXT 25, {y_art}, "2", 0, 1, 1, "{c_clave:<11} {c_nom}"\r\n'
+        y_art += 26
+
+    # --- RECUADRO DE FOLIO Y FECHA (SIN ENCIMARSE) ---
+    tspl += "BOX 25, 620, 551, 710, 2\r\n"
+    tspl += f'TEXT 35, 634, "3", 0, 1, 1, "FOLIO: {folio}"\r\n'
+    tspl += f'TEXT 335, 638, "2", 0, 1, 1, "FECHA: {fecha}"\r\n'
+    tspl += f'TEXT 35, 676, "2", 0, 1, 1, "CEDIS -> {siglas} ({destino[:22]})"\r\n'
+
+    # --- SECCIÓN DE CÓDIGO DE BARRAS ---
+    tspl += "BAR 16, 720, 544, 4\r\n"
+    tspl += f'BARCODE 140, 742, "128", 110, 1, 0, 2, 4, "{folio}"\r\n'
+    tspl += 'TEXT 170, 895, "2", 0, 1, 1, "CODIGO DE BARRAS DE CAJA"\r\n'
+
+    tspl += "PRINT 1, 1\r\n"
+
+    # Ensamblar bytes inyectando el bitmap si existe
+    if logo_bytes:
+        parts = tspl.split("BAR 230, 135, 330, 3\r\n")
+        res = parts[0].encode('latin1', 'replace') + b"BAR 230, 135, 330, 3\r\n" + logo_bytes + parts[1].encode('latin1', 'replace')
+        return res
+    else:
+        return tspl.encode('latin1', 'replace')
+
+def logo_a_zpl_gf(image_path, max_w=280, max_h=75):
+    """
+    Convierte una imagen (PNG/JPG) a comando ^GF (Graphic Field) en formato ASCII Hexadecimal para ZPL.
+    En ZPL: bit 1 = punto negro quemado, 0 = blanco.
+    """
+    if not image_path or not os.path.exists(image_path):
+        return ''
+    try:
+        from PIL import Image
+        im = Image.open(image_path)
+        if im.mode in ('RGBA', 'LA') or (im.mode == 'P' and 'transparency' in im.info):
+            bg = Image.new('RGB', im.size, (255, 255, 255))
+            if im.mode == 'RGBA':
+                bg.paste(im, mask=im.split()[3])
+            else:
+                bg.paste(im)
+            im = bg
+        else:
+            im = im.convert('RGB')
+        im.thumbnail((max_w, max_h), Image.Resampling.LANCZOS)
+        w, h = im.size
+        bytes_per_row = (w + 7) // 8
+        w_pad = bytes_per_row * 8
+        if w_pad != w:
+            padded = Image.new('RGB', (w_pad, h), (255, 255, 255))
+            padded.paste(im, ((w_pad - w) // 2, 0))
+            im = padded
+            w = w_pad
+        # 1 = negro, 0 = blanco
+        im_bw = im.convert('L').point(lambda p: 1 if p < 170 else 0, mode='1')
+        raw_bytes = im_bw.tobytes()
+        hex_str = raw_bytes.hex().upper()
+        total_bytes = len(raw_bytes)
+        return f"^GFA,{total_bytes},{total_bytes},{bytes_per_row},{hex_str}"
+    except Exception as e:
+        print("Aviso al procesar logo para ZPL:", e)
+        return ''
+
+def generar_etiqueta_zpl_text(etiqueta_data):
+    """
+    Genera el formato ZPL para rollo completo de 10 cm x 15 cm (4" x 6", 800x1200 dots a 203 DPI).
+    - Aprovecha el ancho (800 dots) y largo (1200 dots) completo del rollo térmico.
+    - Siglas de sucursal gigantes, en negrita y perfectamente centradas.
+    - Logo oficial de gran tamaño y datos fiscales con margen seguro antes del borde.
+    - Listado de artículos en dos columnas amplias (clave y descripción completa sin cortes).
+    - Recuadro de Folio y Fecha amplio, con fecha completa en su propia línea.
+    - Código de barras grande (160 dots) y centrado, con folio visible debajo.
+    """
+    from app.config import BASE_DIR
+    siglas = quitar_acentos(etiqueta_data.get('sucursal_siglas', 'AE')).strip().upper()[:4]
+    destino = quitar_acentos(etiqueta_data.get('destino', 'SUCURSAL DESTINO')).strip().upper()[:28]
+    empresa = quitar_acentos(etiqueta_data.get('nombre_empresa', 'BATTERY CENTER')).strip().upper()[:28]
+    folio = quitar_acentos(etiqueta_data.get('folio_caja', '10001-1')).strip().upper()[:16]
+    fecha = str(etiqueta_data.get('fecha_empaque', '') or etiqueta_data.get('fecha_hora', '') or '')[:10]
+    articulos = etiqueta_data.get('detalles', []) or etiqueta_data.get('resumen_articulos', [])
+    logo_tag = str(etiqueta_data.get('logo_tag', '')).lower()
+    es_rt = 'RT' in empresa.upper() or 'rt' in logo_tag
+    empresa_sub = "RT REFACCIONES" if es_rt else "BATTERY CENTER"
+
+    # Logo oficial a tamaño completo para 10x15cm (hasta 380x110 dots)
+    logo_filename = "logo rt.png" if es_rt else "logo bc.png"
+    logo_path = os.path.join(BASE_DIR, logo_filename)
+    logo_gf = logo_a_zpl_gf(logo_path, max_w=380, max_h=110)
+
+    zpl = f"""^XA
+^PW800
+^LL1200
+^FO25,25^GB750,1140,6^FS
+^FO25,320^GB750,6,6^FS
+^FO330,25^GB6,295,6^FS
+^FO30,95^FB295,1,0,C^A0N,150,130^FD{siglas}^FS
+"""
+
+    if logo_gf:
+        zpl += f"^FO365,35{logo_gf}^FS\n"
+    else:
+        zpl += f"^FO365,55^A0N,32,26^FD{empresa[:22]}^FS\n"
+
+    dest_limpio = destino.replace("SUCURSAL", "").strip()
+    ruta_txt = f"CEDIS -> {siglas} ({dest_limpio})".strip()[:30]
+
+    zpl += f"""^FO330,160^GB445,4,4^FS
+^FO360,175^A0N,26,20^FD{empresa_sub[:20]}^FS
+^FO360,210^A0N,22,17^FDCEDIS Matriz Torreon^FS
+^FO360,245^A0N,22,17^FDRFC: BCR210815AAA^FS
+^FO360,280^A0N,22,17^FDEMPAQUE: {fecha}^FS
+^FO40,338^A0N,28,24^FDARTICULOS^FS
+^FO25,375^GB750,4,4^FS
+"""
+
+    y = 395
+    for art in articulos[:10]:
+        clv = quitar_acentos(art.get('clave', ''))[:12]
+        nom = quitar_acentos(art.get('nombre', ''))[:28]
+        zpl += f"^FO40,{y}^A0N,24,18^FD{clv}^FS\n"
+        zpl += f"^FO260,{y}^A0N,24,17^FD{nom}^FS\n"
+        y += 34
+
+    zpl += f"""^FO40,750^GB720,125,4^FS
+^FO60,765^A0N,36,28^FDFOLIO: {folio}^FS
+^FO60,808^A0N,26,20^FDFECHA DE EMPAQUE: {fecha}^FS
+^FO60,842^A0N,24,18^FD{ruta_txt}^FS
+^FO25,895^GB750,6,6^FS
+^FO150,930^BY3,3,160^BCN,160,Y,N,N^FD{folio}^FS
+^XZ"""
+    return zpl
+
+
+def imprimir_etiqueta_td401(etiqueta_data, printer_name="Label TD-401", modo='ZPL'):
+    """
+    Envía la etiqueta directamente a la impresora térmica USB 'Label TD-401'.
+    Soporta emulación nativa ZPL (por defecto) y TSPL a través del spooler RAW de Windows.
+    """
+    try:
+        if str(modo).upper() == 'TSPL':
+            raw_bytes = generar_etiqueta_tspl_bytes(etiqueta_data)
+        else:
+            raw_bytes = generar_etiqueta_zpl_text(etiqueta_data).encode('latin1', 'replace')
+        doc_title = f"Etiqueta Caja {etiqueta_data.get('folio_caja', '')}"
+        ok, msg = _enviar_raw_a_spooler(raw_bytes, printer_name, doc_title)
+        return ok, msg
+    except Exception as e:
+        return False, f"Error al enviar a impresora '{printer_name}': {str(e)}"
+
+
+

@@ -420,3 +420,206 @@ def get_detalle_ticket(docto_id):
                 conn.close()
             except:
                 pass
+
+# ================= INDICADORES DE VENTAS DEL DÍA =================
+
+@ventas_bp.route('/api/ventas/indicadores-hoy', methods=['GET'])
+def get_indicadores_hoy():
+    almacen_id = request.args.get('almacen_id', '').strip()
+    conn = None
+    try:
+        conn = conectar_db()
+        cur = conn.cursor()
+
+        filtro_alm = ""
+        params_hoy = []
+        params_ayer = []
+
+        if almacen_id and almacen_id.isdigit():
+            filtro_alm = "AND p.ALMACEN_ID = ?"
+            params_hoy.append(int(almacen_id))
+            params_ayer.append(int(almacen_id))
+
+        # 1. Ventas de Hoy
+        cur.execute(f"""
+            SELECT 
+                COUNT(p.DOCTO_PV_ID) AS TICKETS,
+                SUM(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) AS TOTAL_VENTA
+            FROM DOCTOS_PV p
+            WHERE p.FECHA = CURRENT_DATE
+              AND p.ESTATUS <> 'C'
+              AND p.TIPO_DOCTO IN ('V', 'F')
+              {filtro_alm}
+        """, tuple(params_hoy))
+        r_hoy = cur.fetchone()
+        tickets_hoy = int(r_hoy[0] or 0)
+        total_hoy = float(r_hoy[1] or 0)
+        promedio_hoy = round(total_hoy / tickets_hoy, 2) if tickets_hoy > 0 else 0.0
+
+        # 2. Ventas de Ayer (para comparativa)
+        cur.execute(f"""
+            SELECT 
+                COUNT(p.DOCTO_PV_ID) AS TICKETS,
+                SUM(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) AS TOTAL_VENTA
+            FROM DOCTOS_PV p
+            WHERE p.FECHA = CURRENT_DATE - 1
+              AND p.ESTATUS <> 'C'
+              AND p.TIPO_DOCTO IN ('V', 'F')
+              {filtro_alm}
+        """, tuple(params_ayer))
+        r_ayer = cur.fetchone()
+        total_ayer = float(r_ayer[1] or 0)
+        tickets_ayer = int(r_ayer[0] or 0)
+
+        dif_pct = round(((total_hoy - total_ayer) / total_ayer * 100), 1) if total_ayer > 0 else 0.0
+
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "indicadores": {
+                "total_hoy": total_hoy,
+                "tickets_hoy": tickets_hoy,
+                "ticket_promedio": promedio_hoy,
+                "total_ayer": total_ayer,
+                "tickets_ayer": tickets_ayer,
+                "variacion_pct": dif_pct
+            }
+        })
+    except Exception as e:
+        if conn:
+            try: conn.close()
+            except: pass
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ================= VENTAS PERDIDAS (DEMANDA NO SATISFECHA PARA COMPRAS) =================
+
+@ventas_bp.route('/api/ventas/venta-perdida', methods=['POST'])
+def registrar_venta_perdida():
+    data = request.get_json() or {}
+    clave = str(data.get('clave_articulo', '')).strip().upper()
+    nombre_art = str(data.get('articulo_nombre', '')).strip()
+    motivo = str(data.get('motivo', 'Sin existencia física')).strip()
+    cant = float(data.get('cantidad', 1) or 1)
+    precio_est = float(data.get('precio_estimado', 0) or 0)
+    cliente = str(data.get('cliente_nombre', '')).strip()
+    suc_id = data.get('sucursal_id')
+    suc_nom = str(data.get('sucursal_nombre', '')).strip()
+    ven_id = data.get('vendedor_id')
+    ven_nom = str(data.get('vendedor_nombre', '')).strip()
+    notas = str(data.get('notas', '')).strip()
+
+    if not clave:
+        return jsonify({"success": False, "error": "La clave o descripción del artículo es obligatoria"}), 400
+
+    from app.db import conectar_sqlite
+    import datetime
+    conn = None
+    try:
+        conn = conectar_sqlite()
+        cur = conn.cursor()
+        fec_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        cur.execute("""
+            INSERT INTO ventas_perdidas (
+                fecha, sucursal_id, sucursal_nombre, vendedor_id, vendedor_nombre,
+                cliente_nombre, clave_articulo, articulo_nombre, cantidad, precio_estimado,
+                motivo, notas, estatus_compras
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDIENTE')
+        """, (fec_str, suc_id, suc_nom, ven_id, ven_nom, cliente, clave, nombre_art, cant, precio_est, motivo, notas))
+        
+        conn.commit()
+        nuevo_id = cur.lastrowid
+        conn.close()
+
+        return jsonify({
+            "success": True, 
+            "id": nuevo_id,
+            "mensaje": "Venta perdida registrada exitosamente para el departamento de Compras"
+        })
+    except Exception as e:
+        if conn:
+            try: conn.close()
+            except: pass
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@ventas_bp.route('/api/compras/ventas-perdidas', methods=['GET'])
+def get_reporte_ventas_perdidas():
+    dias = int(request.args.get('dias', 30))
+    motivo = request.args.get('motivo', '').strip()
+    from app.db import conectar_sqlite
+    conn = None
+    try:
+        conn = conectar_sqlite()
+        cur = conn.cursor()
+
+        filtros = ["datetime(fecha) >= datetime('now', '-' || ? || ' days')"]
+        params = [dias]
+
+        if motivo:
+            filtros.append("motivo = ?")
+            params.append(motivo)
+
+        where_sql = "WHERE " + " AND ".join(filtros)
+
+        cur.execute(f"""
+            SELECT 
+                id, fecha, sucursal_nombre, vendedor_nombre, cliente_nombre,
+                clave_articulo, articulo_nombre, cantidad, precio_estimado,
+                motivo, notas, estatus_compras
+            FROM ventas_perdidas
+            {where_sql}
+            ORDER BY id DESC
+        """, tuple(params))
+
+        items = []
+        total_pzas = 0.0
+        total_importe = 0.0
+
+        for r in cur.fetchall():
+            cant = float(r[7] or 0)
+            prec = float(r[8] or 0)
+            imp = cant * prec
+            total_pzas += cant
+            total_importe += imp
+            items.append({
+                "id": r[0],
+                "fecha": r[1],
+                "sucursal": r[2] or "Mostrador",
+                "vendedor": r[3] or "-",
+                "cliente": r[4] or "Público General",
+                "clave": r[5],
+                "articulo": r[6],
+                "cantidad": cant,
+                "precio": prec,
+                "importe_estimado": imp,
+                "motivo": r[9],
+                "notas": r[10] or "",
+                "estatus": r[11] or "PENDIENTE"
+            })
+
+        # Resumen por motivo
+        cur.execute(f"""
+            SELECT motivo, COUNT(*), SUM(cantidad)
+            FROM ventas_perdidas
+            {where_sql}
+            GROUP BY motivo
+            ORDER BY COUNT(*) DESC
+        """, tuple(params))
+        resumen_motivos = [{"motivo": r[0], "conteo": r[1], "piezas": float(r[2] or 0)} for r in cur.fetchall()]
+
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "total_registros": len(items),
+            "total_piezas": total_pzas,
+            "total_importe_estimado": total_importe,
+            "resumen_motivos": resumen_motivos,
+            "registros": items
+        })
+    except Exception as e:
+        if conn:
+            try: conn.close()
+            except: pass
+        return jsonify({"success": False, "error": str(e)}), 500

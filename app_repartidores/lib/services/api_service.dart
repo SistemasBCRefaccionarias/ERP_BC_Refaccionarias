@@ -190,6 +190,8 @@ class ApiService {
     required String codigoCaja,
     String? receptorNombre,
     String? notas,
+    String? firmaBase64,
+    String? fotoBase64,
   }) async {
     try {
       final baseUrl = await StorageService.getServerUrl();
@@ -200,13 +202,15 @@ class ApiService {
         'codigo': codigoCaja.trim().toUpperCase(),
         'receptor': receptorNombre ?? '',
         'notas': notas ?? '',
+        'firma': firmaBase64 ?? '',
+        'foto': fotoBase64 ?? '',
       };
 
       final res = await http.post(
         url,
         headers: _headers(cookie),
         body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 6));
+      ).timeout(const Duration(seconds: 12));
 
       final data = jsonDecode(res.body);
       if (res.statusCode == 200 && data['success'] == true) {
@@ -220,6 +224,8 @@ class ApiService {
         'tipo': 'entrega',
         'codigo': codigoCaja,
         'receptor': receptorNombre,
+        'firma': firmaBase64,
+        'foto': fotoBase64,
         'fecha': DateTime.now().toIso8601String(),
       });
       return ApiResult(

@@ -5,8 +5,42 @@ from flask import Blueprint, request, jsonify, session
 
 from app.config import SQLITE_DB, EMPRESAS_DISPONIBLES, get_current_dsn
 from app.db import conectar_db, conectar_sqlite
+from app.services.pos_printer import (
+    imprimir_etiqueta_td401,
+    generar_etiqueta_tspl_bytes,
+    generar_etiqueta_zpl_text,
+    quitar_acentos
+)
 
 embarques_bp = Blueprint('embarques_bp', __name__)
+
+MAPEO_SIGLAS_SUCURSALES = {
+    'AEROPUERTO': 'AE', 'ARTES GRAFICAS': 'AG', 'ARTES GRÁFICAS': 'AG',
+    'BRAVO': 'BR', 'CARDENAS': 'CA', 'CÁRDENAS': 'CA', 'DIVISION': 'DI',
+    'DIVISIÓN': 'DI', 'FCO. I. MADERO': 'FM', 'FRANCISCO I. MADERO': 'FM',
+    'GOMEZ HIDALGO': 'GH', 'GÓMEZ HIDALGO': 'GH', 'GOMEZ': 'GO', 'GÓMEZ': 'GO',
+    'MATAMOROS': 'MA', 'NAZAS': 'NA', 'REVOLUCION': 'RE', 'REVOLUCIÓN': 'RE',
+    'SAULO': 'SA', 'TAJITO': 'TA', 'VALDEZ': 'VA', 'CEDIS': 'CD',
+    'DURANGO': 'DGO', 'GUADALUPE': 'GUA', 'GENERAL': 'AG'
+}
+
+def obtener_siglas_sucursal(nombre):
+    if not nombre:
+        return "SUC"
+    import unicodedata, re
+    t = unicodedata.normalize('NFKD', str(nombre)).encode('ascii', 'ignore').decode('ascii').upper()
+    for k, v in MAPEO_SIGLAS_SUCURSALES.items():
+        k_norm = unicodedata.normalize('NFKD', k).encode('ascii', 'ignore').decode('ascii').upper()
+        if k_norm in t:
+            return v
+    t_limpio = re.sub(r'^(SUCURSAL|ALMACEN|ALM|DE|DEL|LA|EL)\s+', '', t).strip()
+    words = t_limpio.split()
+    if len(words) >= 2:
+        return (words[0][0] + words[1][0]).upper()
+    elif len(words) == 1 and len(words[0]) >= 2:
+        return words[0][:2].upper()
+    return t[:2].upper()
+
 
 def init_embarques_db():
     conn = conectar_sqlite()
@@ -84,6 +118,14 @@ def init_embarques_db():
     cur.execute("CREATE INDEX IF NOT EXISTS idx_emb_estatus ON embarques(estatus)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_emb_cajas_folio ON embarque_cajas(folio_caja)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_emb_cajas_embid ON embarque_cajas(embarque_id)")
+
+    for tabla in ('embarques', 'embarque_cajas'):
+        for col in ('firma_path', 'foto_path'):
+            try:
+                cur.execute(f"ALTER TABLE {tabla} ADD COLUMN {col} TEXT DEFAULT ''")
+            except Exception:
+                pass
+
     conn.commit()
     conn.close()
 
@@ -314,7 +356,8 @@ def detalle_embarque(embarque_id):
         SELECT 
             id, folio_caja, numero_caja, piezas_en_caja, estatus,
             empacado_por, empacado_en, recolectado_por, recolectado_en,
-            recibido_por, recibido_en, notas
+            recibido_por, recibido_en, notas,
+            COALESCE(firma_path, ''), COALESCE(foto_path, '')
         FROM embarque_cajas
         WHERE embarque_id = ?
         ORDER BY numero_caja ASC
@@ -352,6 +395,8 @@ def detalle_embarque(embarque_id):
             "recibido_por": c[9],
             "recibido_en": c[10],
             "notas": c[11],
+            "firma_path": c[12],
+            "foto_path": c[13],
             "detalles": detalles
         })
 
@@ -497,7 +542,14 @@ def cerrar_caja():
 
     partidas = data.get('partidas', [])
     if not partidas:
-        return jsonify({"success": False, "error": "No hay partidas escaneadas en esta caja"}), 400
+        partidas = [{
+            "articulo_id": None,
+            "clave": "CAJA-EMB",
+            "nombre": "MERCANCIA DE EMBARQUE",
+            "codigo_barras": "CAJA-EMB",
+            "unidades": 1
+        }]
+
 
     conn = conectar_sqlite()
     cur = conn.cursor()
@@ -561,22 +613,39 @@ def cerrar_caja():
         conn.commit()
         conn.close()
 
-        # Generar datos para la etiqueta Zebra
+        # Generar datos para la etiqueta TD-401 / Zebra
+        siglas = obtener_siglas_sucursal(destino_nom)
+        es_rt = 'RT' in empresa.upper()
+        nombre_empresa = 'RT REFACCIONES' if es_rt else 'BATTERY CENTER'
+        logo_tag = 'logo rt' if es_rt else 'logo bc'
+
         etiqueta_data = {
             "folio_caja": folio_caja,
             "folio_embarque": folio_base,
             "numero_caja": num_caja,
+            "total_cajas": nuevo_total_cajas,
             "empresa": empresa,
+            "nombre_empresa": nombre_empresa,
+            "logo_tag": logo_tag,
+            "sucursal_siglas": siglas,
+            "origen": "CEDIS",
             "destino": destino_nom,
             "piezas": int(piezas_caja),
             "fecha_hora": ahora,
+            "fecha_empaque": ahora,
             "operador": usuario_actual,
             "total_partidas": len(partidas),
+            "detalles": [
+                {"clave": str(p.get('clave', '')).strip().upper(), "nombre": str(p.get('nombre', '')).strip()}
+                for p in partidas
+            ],
             "resumen_articulos": [
-                {"clave": p.get('clave'), "nombre": p.get('nombre', '')[:25], "unidades": p.get('unidades', 1)}
-                for p in partidas[:4]
+                {"clave": str(p.get('clave', '')).strip().upper(), "nombre": str(p.get('nombre', ''))[:30].strip()}
+                for p in partidas
             ]
         }
+        etiqueta_data["zpl"] = generar_etiqueta_zpl_text(etiqueta_data)
+
 
         return jsonify({
             "success": True,
@@ -722,14 +791,55 @@ def sucursal_recibir_caja():
             "mensaje": f"La caja {folio_caja} ya había sido registrada como recibida previamente."
         })
 
+    receptor_enviado = str(data.get('receptor') or '').strip()
+    if receptor_enviado:
+        usuario_recibe = receptor_enviado
+
     ahora = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Guardar firma digital táctil y fotografía de entrega si fueron proporcionadas
+    firma_base64 = data.get('firma') or data.get('firma_base64') or ''
+    foto_base64 = data.get('foto') or data.get('foto_base64') or ''
+    firma_path = ''
+    foto_path = ''
+
+    upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'static', 'uploads', 'evidencias_entregas')
+    os.makedirs(upload_dir, exist_ok=True)
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    clean_folio = folio_caja.replace('-', '_').replace(' ', '_')
+
+    if firma_base64:
+        try:
+            import base64
+            raw_b64 = firma_base64.split(',', 1)[1] if ',' in firma_base64 else firma_base64
+            firma_filename = f"firma_{clean_folio}_{ts}.png"
+            firma_full = os.path.join(upload_dir, firma_filename)
+            with open(firma_full, 'wb') as f:
+                f.write(base64.b64decode(raw_b64))
+            firma_path = f"/static/uploads/evidencias_entregas/{firma_filename}"
+        except Exception as err:
+            print("Error guardando firma digital:", err)
+
+    if foto_base64:
+        try:
+            import base64
+            raw_b64 = foto_base64.split(',', 1)[1] if ',' in foto_base64 else foto_base64
+            foto_filename = f"foto_{clean_folio}_{ts}.jpg"
+            foto_full = os.path.join(upload_dir, foto_filename)
+            with open(foto_full, 'wb') as f:
+                f.write(base64.b64decode(raw_b64))
+            foto_path = f"/static/uploads/evidencias_entregas/{foto_filename}"
+        except Exception as err:
+            print("Error guardando foto evidencia:", err)
 
     # Marcar caja recibida
     cur.execute("""
         UPDATE embarque_cajas
-        SET estatus = 'RECIBIDA', recibido_por = ?, recibido_en = ?
+        SET estatus = 'RECIBIDA', recibido_por = ?, recibido_en = ?,
+            firma_path = CASE WHEN ? <> '' THEN ? ELSE firma_path END,
+            foto_path = CASE WHEN ? <> '' THEN ? ELSE foto_path END
         WHERE id = ?
-    """, (usuario_recibe, ahora, caja_id))
+    """, (usuario_recibe, ahora, firma_path, firma_path, foto_path, foto_path, caja_id))
 
     # Verificar si todas las cajas del embarque están ya recibidas
     cur.execute("""
@@ -742,14 +852,24 @@ def sucursal_recibir_caja():
     if pendientes == 0:
         cur.execute("""
             UPDATE embarques
-            SET estatus = 'RECIBIDO', recibido_por = ?, recibido_en = ?
+            SET estatus = 'RECIBIDO', recibido_por = ?, recibido_en = ?,
+                firma_path = CASE WHEN ? <> '' THEN ? ELSE firma_path END,
+                foto_path = CASE WHEN ? <> '' THEN ? ELSE foto_path END
             WHERE id = ?
-        """, (usuario_recibe, ahora, emb_id))
+        """, (usuario_recibe, ahora, firma_path, firma_path, foto_path, foto_path, emb_id))
         embarque_completado = True
+
+    desc_tracking = f"Caja {folio_caja} recibida por {usuario_recibe}"
+    if firma_path:
+        desc_tracking += " [Firma capturada]"
+    if foto_path:
+        desc_tracking += " [Foto de evidencia tomada]"
+    if embarque_completado:
+        desc_tracking += " (Embarque completado al 100%)"
 
     _registrar_tracking(
         conn, emb_id, 'RECIBIDO' if embarque_completado else 'EN_TRANSITO',
-        f"Caja {folio_caja} recibida en {dest_nom} por {usuario_recibe}" + (" (Embarque completado al 100%)" if embarque_completado else ""),
+        desc_tracking,
         usuario_recibe, caja_id, folio_caja
     )
 
@@ -768,6 +888,8 @@ def sucursal_recibir_caja():
         "folio_embarque": folio_emb,
         "sucursal": dest_nom,
         "embarque_completado": embarque_completado,
+        "firma_path": firma_path,
+        "foto_path": foto_path,
         "detalles": detalles,
         "mensaje": f"Caja {folio_caja} recibida con éxito en {dest_nom}." + (" ¡Todo el embarque ha sido completado!" if embarque_completado else "")
     })
@@ -1004,37 +1126,10 @@ def get_etiqueta_caja(folio_caja):
     detalles = [{"clave": d[0], "nombre": d[1], "unidades": float(d[2] or 0)} for d in cur.fetchall()]
     conn.close()
 
+    siglas = obtener_siglas_sucursal(destino)
     es_rt = 'RT' in empresa.upper()
-    nombre_empresa = 'RT REFACCIONES' if es_rt else 'BC REFACCIONARIAS'
+    nombre_empresa = 'RT REFACCIONES' if es_rt else 'BATTERY CENTER'
     logo_tag = 'logo rt' if es_rt else 'logo bc'
-
-    # Generar comando ZPL estándar para impresora Zebra (4" x 6" / 203 DPI)
-    zpl = f"""^XA
-^PW812
-^LL1218
-^FO50,40^A0N,45,45^FD{nombre_empresa}^FS
-^FO50,95^A0N,28,28^FDETIQUETA DE EMBARQUE Y CAJA^FS
-^FO50,130^GB712,3,3^FS
-^FO50,150^A0N,32,32^FDDESTINO:^FS
-^FO50,190^A0N,55,50^FD{destino[:28]}^FS
-^FO50,260^A0N,30,30^FDORIGEN: {origen}^FS
-^FO50,300^A0N,30,30^FDFECHA: {fecha_empaque}^FS
-^FO50,340^GB712,3,3^FS
-^FO120,380^BY3,3,140^BCN,140,Y,N,N^FD{folio_clean}^FS
-^FO50,580^GB712,3,3^FS
-^FO50,610^A0N,40,40^FDCAJA: {num_caja} DE {tot_cajas}^FS
-^FO450,610^A0N,40,40^FDCANTIDAD: {int(piezas)} PZAS^FS
-^FO50,670^A0N,26,26^FDEMPACADOR: {operador}^FS
-^FO50,710^GB712,2,2^FS
-^FO50,730^A0N,24,24^FDRESUMEN DE CONTENIDO EN ESTA CAJA:^FS
-"""
-    y_pos = 770
-    for idx, d in enumerate(detalles[:8]):
-        linea = f"• {d['clave']} ({int(d['unidades'])} pzs) {d['nombre'][:32]}"
-        zpl += f"^FO60,{y_pos}^A0N,22,22^FD{linea}^FS\n"
-        y_pos += 35
-
-    zpl += "^XZ"
 
     etiqueta_data = {
         "folio_caja": folio_clean,
@@ -1044,16 +1139,94 @@ def get_etiqueta_caja(folio_caja):
         "empresa": empresa,
         "nombre_empresa": nombre_empresa,
         "logo_tag": logo_tag,
+        "sucursal_siglas": siglas,
         "origen": origen,
         "destino": destino,
         "piezas": int(piezas),
         "fecha_empaque": fecha_empaque,
+        "fecha_hora": fecha_empaque,
         "operador": operador,
-        "detalles": detalles,
-        "zpl": zpl
+        "detalles": [{"clave": d["clave"], "nombre": d["nombre"]} for d in detalles]
     }
+    etiqueta_data["zpl"] = generar_etiqueta_zpl_text(etiqueta_data)
+
     return jsonify({
         "success": True,
         "etiqueta": etiqueta_data,
         "caja": etiqueta_data
     })
+
+@embarques_bp.route('/api/embarques/imprimir-etiqueta-usb', methods=['POST'])
+def api_imprimir_etiqueta_usb():
+    """
+    Envía la impresión de la etiqueta directo a la impresora USB 'Label TD-401'.
+    """
+    data = request.get_json() or {}
+    etiqueta_data = data.get('etiqueta')
+    
+    if not etiqueta_data and data.get('folio_caja'):
+        folio_caja = data.get('folio_caja')
+        # Reutilizamos la lógica de get_etiqueta_caja
+        res = get_etiqueta_caja(folio_caja)
+        res_data = res.get_json() if hasattr(res, 'get_json') else None
+        if res_data and res_data.get('success'):
+            etiqueta_data = res_data.get('etiqueta')
+
+    if not etiqueta_data:
+        return jsonify({"success": False, "error": "No se recibieron datos de la etiqueta"}), 400
+
+    nombre_impresora = data.get('impresora') or 'Label TD-401'
+    modo = str(data.get('modo') or 'ZPL').upper()
+    ok, msg = imprimir_etiqueta_td401(etiqueta_data, printer_name=nombre_impresora, modo=modo)
+    if ok:
+        return jsonify({
+            "success": True,
+            "mensaje": f"Etiqueta enviada correctamente a '{nombre_impresora}' ({msg})."
+        })
+    else:
+        return jsonify({
+            "success": False,
+            "error": f"Fallo al imprimir en '{nombre_impresora}': {msg}"
+        }), 500
+
+@embarques_bp.route('/api/embarques/probar-impresora-usb', methods=['POST'])
+def api_probar_impresora_usb():
+    """
+    Imprime una etiqueta de prueba en la Label TD-401 para validar conexión y calibración.
+    """
+    data = request.get_json() or {}
+    nombre_impresora = data.get('impresora') or 'Label TD-401'
+    modo = str(data.get('modo') or 'ZPL').upper()
+    ahora_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    etiqueta_prueba = {
+        "sucursal_siglas": "AE",
+        "destino": "SUCURSAL AEROPUERTO",
+        "nombre_empresa": "BATTERY CENTER",
+        "folio_caja": "TEST-10001-1",
+        "numero_caja": 1,
+        "total_cajas": 1,
+        "fecha_hora": ahora_str,
+        "fecha_empaque": ahora_str,
+        "operador": session.get('usuario') or 'Admin',
+        "detalles": [
+            {"clave": "L-24-500", "nombre": "ACUMULADOR LTH L-24-500"},
+            {"clave": "L-34-600", "nombre": "ACUMULADOR LTH L-34-600"},
+            {"clave": "GP-46", "nombre": "FILTRO ACEITE GONHER GP-46"},
+            {"clave": "BC-200", "nombre": "TERMINAL BATERIA LATON"}
+        ]
+    }
+    etiqueta_prueba["zpl"] = generar_etiqueta_zpl_text(etiqueta_prueba)
+    ok, msg = imprimir_etiqueta_td401(etiqueta_prueba, printer_name=nombre_impresora, modo=modo)
+    if ok:
+        return jsonify({
+            "success": True,
+            "mensaje": f"¡Prueba enviada con éxito a '{nombre_impresora}' ({msg})!",
+            "etiqueta": etiqueta_prueba
+        })
+    else:
+        return jsonify({
+            "success": False,
+            "error": f"No se pudo enviar a '{nombre_impresora}': {msg}"
+        }), 500
+
+

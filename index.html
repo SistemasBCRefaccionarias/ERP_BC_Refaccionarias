@@ -475,73 +475,87 @@
                     </div>
 
                     <div id="dashboardContent" class="space-y-5 transition-opacity duration-200">
-                        <!-- 5 KPI Cards Ejecutivas -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                        <!-- 6 KPI Cards Ejecutivas (Ventas, Utilidad, Costo Almacén, Estrella, Líder, Cliente) -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
                             <!-- Card 1: Ventas Totales -->
-                            <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all">
-                                <div class="flex items-center justify-between mb-3">
-                                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Ventas Totales</span>
-                                    <div class="w-10 h-10 rounded-2xl bg-theme-light text-theme-deep flex items-center justify-center font-bold text-base shadow-xs">
+                            <div class="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Ventas Totales</span>
+                                    <div class="w-8 h-8 rounded-xl bg-theme-light text-theme-deep flex items-center justify-center font-bold text-sm shadow-xs">
                                         💰
                                     </div>
                                 </div>
-                                <div id="kpiTotalVenta" class="text-2xl font-black text-slate-900 tracking-tight">$0.00</div>
-                                <div id="kpiTotalTickets" class="text-xs text-theme-deep font-bold mt-1.5 flex items-center gap-1">
+                                <div id="kpiTotalVenta" class="text-xl font-black text-slate-900 tracking-tight">$0.00</div>
+                                <div id="kpiTotalTickets" class="text-[11px] text-theme-deep font-bold mt-1 flex items-center gap-1">
                                     0 tickets emitidos
                                 </div>
                             </div>
 
-                            <!-- Card 2: Inventario Físico Total -->
-                            <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all">
-                                <div class="flex items-center justify-between mb-3">
-                                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Inventario en Grupo</span>
-                                    <div class="w-10 h-10 rounded-2xl bg-theme-light text-theme-deep flex items-center justify-center font-bold text-base shadow-xs">
-                                        📦
+                            <!-- Card 2: Utilidad de Venta (Margen Bruto) -->
+                            <div class="bg-white p-4 rounded-3xl border border-emerald-200/90 bg-emerald-50/15 shadow-xs hover:shadow-md transition-all">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">Utilidad de Venta</span>
+                                    <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-sm shadow-xs">
+                                        📈
                                     </div>
                                 </div>
-                                <div id="kpiTotalStock" class="text-2xl font-black text-slate-900 tracking-tight">0 pzas</div>
-                                <div id="kpiTotalAlmacenes" class="text-xs text-theme-deep font-bold mt-1.5 flex items-center gap-1">
-                                    En almacenes y CEDIS
+                                <div id="kpiUtilidadVenta" class="text-xl font-black text-emerald-700 tracking-tight">$0.00</div>
+                                <div id="kpiMargenUtilidad" class="text-[11px] text-emerald-600 font-bold mt-1 flex items-center gap-1">
+                                    Margen bruto: 0.0%
                                 </div>
                             </div>
 
-                            <!-- Card 3: Artículo Estrella -->
-                            <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all">
+                            <!-- Card 3: Costo de Almacén (Valor de Inventario) -->
+                            <div class="bg-white p-4 rounded-3xl border border-amber-200/90 bg-amber-50/15 shadow-xs hover:shadow-md transition-all">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Mejor Vendido (Grupo)</span>
-                                    <div class="w-10 h-10 rounded-2xl bg-theme-light text-theme-deep flex items-center justify-center font-bold text-base shadow-xs">
+                                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800">Costo de Almacén</span>
+                                    <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm shadow-xs">
+                                        🏷️
+                                    </div>
+                                </div>
+                                <div id="kpiCostoInventario" class="text-xl font-black text-amber-900 tracking-tight">$0.00</div>
+                                <div id="kpiTotalStock" class="text-[11px] text-amber-700 font-bold mt-1 flex items-center gap-1">
+                                    0 pzas en stock
+                                </div>
+                            </div>
+
+                            <!-- Card 4: Artículo Estrella -->
+                            <div class="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Mejor Vendido</span>
+                                    <div class="w-8 h-8 rounded-xl bg-theme-light text-theme-deep flex items-center justify-center font-bold text-sm shadow-xs">
                                         🏆
                                     </div>
                                 </div>
-                                <div id="kpiArticuloClave" class="text-base font-black text-theme-deep font-mono tracking-tight">--</div>
-                                <div id="kpiArticuloNombre" class="text-[11px] text-slate-700 font-bold truncate mt-0.5" title="">Cargando artículo...</div>
-                                <div id="kpiArticuloVenta" class="text-[11px] text-slate-500 font-semibold mt-1">-- pzas vendidas</div>
+                                <div id="kpiArticuloClave" class="text-sm font-black text-theme-deep font-mono tracking-tight truncate">--</div>
+                                <div id="kpiArticuloNombre" class="text-[10px] text-slate-700 font-bold truncate mt-0.5" title="">Cargando artículo...</div>
+                                <div id="kpiArticuloVenta" class="text-[10px] text-slate-500 font-semibold mt-0.5">-- pzas vendidas</div>
                             </div>
 
-                            <!-- Card 4: Sucursal Líder -->
-                            <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all">
+                            <!-- Card 5: Sucursal Líder -->
+                            <div class="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Sucursal Líder</span>
-                                    <div class="w-10 h-10 rounded-2xl bg-theme-light text-theme-deep flex items-center justify-center font-bold text-base shadow-xs">
+                                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Sucursal Líder</span>
+                                    <div class="w-8 h-8 rounded-xl bg-theme-light text-theme-deep flex items-center justify-center font-bold text-sm shadow-xs">
                                         🏢
                                     </div>
                                 </div>
-                                <div id="kpiSucursalLiderNombre" class="text-base font-black text-theme-deep truncate tracking-tight">--</div>
-                                <div id="kpiSucursalLiderMonto" class="text-lg font-black text-slate-900 mt-0.5">$0.00</div>
-                                <div class="text-[11px] text-theme-deep font-bold mt-1">Mayor facturación en grupo</div>
+                                <div id="kpiSucursalLiderNombre" class="text-sm font-black text-theme-deep truncate tracking-tight">--</div>
+                                <div id="kpiSucursalLiderMonto" class="text-base font-black text-slate-900 mt-0.5">$0.00</div>
+                                <div class="text-[10px] text-theme-deep font-bold mt-0.5 truncate">Mayor facturación</div>
                             </div>
 
-                            <!-- Card 5: Mejor Cliente -->
-                            <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all">
+                            <!-- Card 6: Mejor Cliente -->
+                            <div class="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Mejor Cliente</span>
-                                    <div class="w-10 h-10 rounded-2xl bg-theme-light text-theme-deep flex items-center justify-center font-bold text-base shadow-xs">
+                                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Mejor Cliente</span>
+                                    <div class="w-8 h-8 rounded-xl bg-theme-light text-theme-deep flex items-center justify-center font-bold text-sm shadow-xs">
                                         👤
                                     </div>
                                 </div>
-                                <div id="kpiClienteNombre" class="text-base font-black text-theme-deep truncate tracking-tight" title="">--</div>
-                                <div id="kpiClienteVenta" class="text-lg font-black text-slate-900 mt-0.5">$0.00</div>
-                                <div id="kpiClienteTickets" class="text-[11px] text-theme-deep font-bold mt-1">-- tickets</div>
+                                <div id="kpiClienteNombre" class="text-sm font-black text-theme-deep truncate tracking-tight" title="">--</div>
+                                <div id="kpiClienteVenta" class="text-base font-black text-slate-900 mt-0.5">$0.00</div>
+                                <div id="kpiClienteTickets" class="text-[10px] text-theme-deep font-bold mt-0.5">-- tickets</div>
                             </div>
                         </div>
 
@@ -588,13 +602,24 @@
                                         <p id="subtituloTopArticulos" class="text-xs text-slate-500 font-medium mt-0.5">Productos con mayor rotación y piezas vendidas en todo el grupo</p>
                                     </div>
                                     <div class="flex items-center gap-2 flex-wrap">
+                                        <!-- Selector de Límite: Top 10, Top 15, Top 50, Top 100 -->
+                                        <div class="inline-flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-xl border border-slate-200 text-xs">
+                                            <span class="text-[10px] font-black uppercase text-slate-500">Top:</span>
+                                            <select id="selectTopArticulosLimit" onchange="cambiarLimiteTopArticulos(this.value)" class="bg-white text-slate-800 font-black text-xs rounded-lg px-2 py-0.5 border border-slate-200 focus:outline-none cursor-pointer">
+                                                <option value="10">Top 10</option>
+                                                <option value="15" selected>Top 15</option>
+                                                <option value="50">Top 50</option>
+                                                <option value="100">Top 100</option>
+                                            </select>
+                                        </div>
+
                                         <!-- Toggle de Criterio: Mayor Cantidad vs Mayor Importe -->
                                         <div class="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-bold">
                                             <button type="button" id="btnTopCriterioPiezas" onclick="cambiarCriterioTopArticulos('piezas')" class="px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer btn-theme-primary text-white shadow-xs">
-                                                📦 Mayor Cantidad
+                                                📦 Cantidad
                                             </button>
                                             <button type="button" id="btnTopCriterioImporte" onclick="cambiarCriterioTopArticulos('importe')" class="px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer text-slate-600 hover:text-slate-900">
-                                                💰 Mayor Importe
+                                                💰 Importe
                                             </button>
                                         </div>
                                         <button type="button" onclick="activarTab('resurtidos')" class="text-xs font-bold text-theme-primary hover:opacity-80 hover:underline cursor-pointer whitespace-nowrap">
@@ -655,7 +680,7 @@
                         <!-- Accesos Rápidos Operativos -->
                         <div class="bg-slate-50 p-5 rounded-3xl border border-slate-200/80">
                             <h4 class="text-xs font-black uppercase tracking-wider text-slate-500 mb-3.5">Accesos Rápidos Operativos</h4>
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
                                 <button type="button" onclick="activarTab('resurtidos')" class="p-3.5 bg-white hover-theme-soft rounded-2xl border border-slate-200 text-left transition shadow-xs group cursor-pointer">
                                     <div class="text-xl mb-1 group-hover:scale-110 transition-transform">📊</div>
                                     <div class="font-bold text-slate-800 text-xs">Resurtidos</div>
@@ -676,6 +701,11 @@
                                     <div class="font-bold text-slate-800 text-xs">Listas de Precios</div>
                                     <div class="text-[10px] text-slate-400">Actualización masiva</div>
                                 </button>
+                                <a href="/facturacion" target="_blank" class="p-3.5 bg-white hover:bg-rose-50/50 rounded-2xl border border-slate-200 hover:border-rose-300 text-left transition shadow-xs group cursor-pointer">
+                                    <div class="text-xl mb-1 group-hover:scale-110 transition-transform">🌐</div>
+                                    <div class="font-bold text-slate-800 text-xs">Facturación en Línea</div>
+                                    <div class="text-[10px] text-rose-600 font-semibold">Portal CFDI 4.0 Clientes</div>
+                                </a>
                             </div>
                         </div>
 
@@ -712,6 +742,10 @@
                                                 </div>
                                                 <button type="button" onclick="pvBuscarClienteManual()" title="Buscar cliente" class="h-8 px-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1 active:scale-95 shadow-xs shrink-0">
                                                     Buscar
+                                                </button>
+                                                <button type="button" onclick="pvAbrirModalAltaCliente()" title="Dar de alta cliente nuevo directamente" class="h-8 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl transition cursor-pointer flex items-center gap-1 active:scale-95 shadow-xs shrink-0">
+                                                    <span>➕</span>
+                                                    <span class="hidden sm:inline">Nuevo</span>
                                                 </button>
                                             </div>
                                             <!-- Dropdown Resultados de Clientes -->
@@ -762,11 +796,11 @@
                                     
                                     <!-- Badges de Condición Comercial del Cliente -->
                                     <div class="flex flex-wrap items-center gap-1.5 shrink-0">
-                                        <span id="pvBadgeTablaAsignada" class="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-xl border border-indigo-200/90 shadow-2xs whitespace-nowrap">
-                                            Tabla Asignada: Talleres y Flotillas
+                                        <span id="pvBadgeTablaAsignada" class="text-[10px] font-bold bg-slate-100 text-slate-700 px-2.5 py-1.5 rounded-xl border border-slate-200/90 shadow-2xs whitespace-nowrap">
+                                            Tabla Asignada: Público en General
                                         </span>
                                         <span id="pvBadgeFormaCobro" class="text-[10px] font-bold bg-slate-100 text-slate-700 px-2.5 py-1.5 rounded-xl border border-slate-200/90 shadow-2xs whitespace-nowrap">
-                                            FORMA DE COBRO: CREDITO 30 DIAS
+                                            FORMA DE COBRO: CONTADO
                                         </span>
                                     </div>
 
@@ -974,19 +1008,50 @@
                                 <span id="pvTxtTotalPagar" class="text-2xl font-black text-emerald-400 tracking-tight">$0.00</span>
                             </div>
 
+                            <!-- Modalidad de Entrega (En Tienda vs Envío a Domicilio) -->
+                            <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-200/90 space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] font-black uppercase text-slate-500 tracking-wider">Tipo de Entrega</span>
+                                    <span id="pvBadgeTipoEntrega" class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">🏬 En Tienda</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-1.5">
+                                    <button type="button" id="pvBtnEntregaTienda" onclick="pvSetTipoEntrega('TIENDA')"
+                                            class="py-1.5 px-2 rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-1 bg-white text-slate-800 shadow-2xs border-2 border-emerald-500">
+                                        <span>🏬 Tienda</span>
+                                    </button>
+                                    <button type="button" id="pvBtnEntregaEnvio" onclick="pvSetTipoEntrega('ENVIO')"
+                                            class="py-1.5 px-2 rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-1 bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200">
+                                        <span>🚚 Envío</span>
+                                    </button>
+                                </div>
+                                <div id="pvContainerDetalleEnvio" class="hidden pt-1.5 border-t border-slate-200/80 space-y-1">
+                                    <input type="text" id="pvInputDireccionEnvio" placeholder="Dirección de entrega, colonia o teléfono..."
+                                           class="w-full text-xs font-semibold px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                </div>
+                            </div>
+
                             <!-- Botones de Acción (Touch & Tablet Optimized) -->
                             <div class="space-y-2 pt-1">
                                 <button type="button" onclick="pvEnviarACaja()" class="w-full h-14 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg shadow-emerald-600/25 transition cursor-pointer flex items-center justify-center gap-2">
                                     <span class="text-lg">✈️</span>
                                     <span>Enviar a Caja (Cobrar en Microsip)</span>
                                 </button>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <button type="button" onclick="pvAbrirModalObservaciones()" class="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5">
-                                        <span>📝</span> Observaciones
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                                    <button type="button" onclick="pvAbrirModalObservaciones()" class="py-2.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1" title="Agregar notas y observaciones">
+                                        <span>📝</span> Notas
                                     </button>
-                                    <button type="button" onclick="pvGenerarCotizacion()" class="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5">
-                                        <span>📄</span> Cotización
+                                    <button type="button" onclick="pvGenerarCotizacion()" class="py-2.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1" title="Imprimir ticket de cotización">
+                                        <span>📄</span> Cotizar
                                     </button>
+                                    <button type="button" onclick="pvEnviarCotizacionWhatsApp()" class="py-2.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-black text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-2xs" title="Enviar cotización por WhatsApp al cliente">
+                                        <span>📲</span> WhatsApp
+                                    </button>
+                                    <button type="button" onclick="pvAbrirModalVentaPerdida()" class="py-2.5 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-black text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-2xs" title="Registrar motivo de venta perdida para Compras">
+                                        <span>❌</span> Pérdida
+                                    </button>
+                                    <a href="/facturacion" target="_blank" class="py-2.5 px-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-black text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-2xs" title="Abrir portal de autofacturación en línea">
+                                        <span>🌐</span> Facturar
+                                    </a>
                                 </div>
                             </div>
 
@@ -1021,7 +1086,7 @@
                                     <div id="pvModalStockAlmacen" class="text-lg font-black text-emerald-600">0 pzas</div>
                                 </div>
                                 <div>
-                                    <div class="text-[10px] font-bold text-blue-700">Tabla Asignada: Talleres y Flotillas</div>
+                                    <div id="pvModalTablaAsignada" class="text-[10px] font-bold text-blue-700">Tabla Asignada: Público en General</div>
                                     <h3 id="pvModalNombreArticulo" class="text-sm font-black text-slate-900 mt-1"></h3>
                                 </div>
                                 <div class="text-[10px] text-slate-500">
@@ -1249,6 +1314,42 @@
                                 <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                 <span>Exportar Excel / CSV</span>
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- Indicadores de Ventas en Vivo del Día -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                        <div class="bg-white p-4 rounded-2xl border border-emerald-200/90 bg-emerald-50/15 shadow-xs flex items-center justify-between">
+                            <div>
+                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">Ventas Hoy</div>
+                                <div id="kpiVentasHoyTotal" class="text-xl font-black text-slate-900">$0.00</div>
+                                <div id="kpiVentasHoyDif" class="text-[10px] font-bold text-emerald-600 mt-0.5">Calculando vs ayer...</div>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg shadow-xs">💰</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-2xl border border-blue-200/90 bg-blue-50/15 shadow-xs flex items-center justify-between">
+                            <div>
+                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Tickets Emitidos Hoy</div>
+                                <div id="kpiVentasHoyTickets" class="text-xl font-black text-slate-900">0</div>
+                                <div class="text-[10px] font-bold text-slate-500 mt-0.5">Operaciones registradas</div>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-lg shadow-xs">🧾</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-2xl border border-purple-200/90 bg-purple-50/15 shadow-xs flex items-center justify-between">
+                            <div>
+                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-purple-700">Ticket Promedio</div>
+                                <div id="kpiVentasHoyPromedio" class="text-xl font-black text-slate-900">$0.00</div>
+                                <div class="text-[10px] font-bold text-slate-500 mt-0.5">Promedio por compra</div>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-lg shadow-xs">📊</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+                            <div>
+                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Ventas de Ayer</div>
+                                <div id="kpiVentasAyerTotal" class="text-xl font-black text-slate-700">$0.00</div>
+                                <div id="kpiVentasAyerTickets" class="text-[10px] font-bold text-slate-500 mt-0.5">0 tickets cerrados</div>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center text-lg shadow-xs">📅</div>
                         </div>
                     </div>
 
@@ -1636,6 +1737,26 @@
                                 </div>
                                 <button type="button" onclick="activarTab('compras_solicitudes')" class="w-full py-2 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer">
                                     <span>Validar Solicitudes de Traspaso</span>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                                </button>
+                            </div>
+
+                            <!-- Tarjeta 7: Reporte de Ventas Perdidas -->
+                            <div id="cardLaunchpadVentasPerdidas" class="bg-gradient-to-br from-slate-50 to-rose-50/40 p-4 rounded-2xl border border-slate-200 hover:border-rose-400 hover:shadow-md transition space-y-3 flex flex-col justify-between">
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <div class="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center font-black shadow-sm text-lg">
+                                            📢
+                                        </div>
+                                        <span id="badgeCardComprasVentasPerdidas" class="text-[10px] font-black text-rose-800 bg-rose-100 px-2.5 py-0.5 rounded-full border border-rose-200">Demanda Insatisfecha</span>
+                                    </div>
+                                    <h4 class="text-sm font-black text-slate-800">7. Reporte de Ventas Perdidas</h4>
+                                    <p class="text-xs text-slate-500 leading-relaxed">
+                                        Monitoreo de artículos solicitados en mostrador que no se concretaron por falta de existencia, precio o tiempo de entrega. Permite a Compras proyectar resurtidos y órdenes de compra con proveedores.
+                                    </p>
+                                </div>
+                                <button type="button" onclick="abrirReporteVentasPerdidasCompras()" class="w-full py-2 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer">
+                                    <span>Ver Reporte de Ventas Perdidas</span>
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                                 </button>
                             </div>
@@ -2545,38 +2666,39 @@
                     <!-- ================= SUB-MÓDULO 1: CONTROL Y ESCANEO DE TRASPASOS ================= -->
                     <div id="subAlmEscanerContent" class="space-y-4">
                         <!-- Panel de Entrada de Escáner Hero -->
-                        <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-5 text-white shadow-xl border border-slate-700/60 space-y-4">
-                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-700/60 pb-3">
+                        <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm space-y-4 relative overflow-hidden">
+                            <div class="absolute inset-x-0 top-0 h-1" style="background: var(--theme-gradient);"></div>
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-2xl bg-amber-400/20 text-amber-400 flex items-center justify-center text-lg border border-amber-400/30">
+                                    <div class="w-11 h-11 rounded-2xl btn-theme-primary text-white flex items-center justify-center text-xl shadow-md flex-shrink-0">
                                         ⚡
                                     </div>
                                     <div>
                                         <div class="flex items-center gap-2">
-                                            <h3 class="text-sm font-black uppercase tracking-wider text-white">Lectura de Código de Barras de Traspasos</h3>
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                                            <h3 class="text-sm font-black uppercase tracking-wider text-slate-900">Lectura de Código de Barras de Traspasos</h3>
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
                                                 Escáner Listo
                                             </span>
                                         </div>
-                                        <p class="text-[11px] text-slate-300 font-medium">Compatible con pistolas lectoras USB/Bluetooth (Code 128) y búsqueda manual por folio.</p>
+                                        <p class="text-[11px] text-slate-500 font-medium">Compatible con pistolas lectoras USB/Bluetooth (Code 128) y búsqueda manual por folio.</p>
                                     </div>
                                 </div>
 
                                 <!-- Opciones Rápidas del Escáner -->
-                                <div class="flex flex-wrap items-center gap-3 text-xs bg-slate-950/60 px-3.5 py-2 rounded-2xl border border-slate-700/60">
-                                    <label class="flex items-center gap-2 cursor-pointer select-none font-semibold text-slate-200">
-                                        <input type="checkbox" id="chkAutoCambiarStatus" checked class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-600 bg-slate-800">
+                                <div class="flex flex-wrap items-center gap-3 text-xs bg-slate-50 px-3.5 py-2 rounded-2xl border border-slate-200">
+                                    <label class="flex items-center gap-2 cursor-pointer select-none font-bold text-slate-700">
+                                        <input type="checkbox" id="chkAutoCambiarStatus" checked class="w-4 h-4 rounded text-theme-primary focus:ring-theme-primary border-slate-300">
                                         <span class="text-[11px]">⚡ Auto-aplicar al leer:</span>
                                     </label>
-                                    <select id="selectStatusObjetivo" class="bg-slate-800 text-white font-bold text-xs rounded-xl px-2.5 py-1 border border-slate-600 focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                                    <select id="selectStatusObjetivo" class="bg-white text-slate-900 font-bold text-xs rounded-xl px-2.5 py-1 border border-slate-200 focus:ring-2 focus:ring-theme-primary focus:outline-none">
                                         <option value="14" selected>14: ENTREGADO / RECIBIDO</option>
                                         <option value="8">8: EN TRANSITO / SURTIDO</option>
                                         <option value="2">2: EN PROCESO DE SURTIDO</option>
                                         <option value="0">0: PENDIENTE</option>
                                     </select>
-                                    <label class="flex items-center gap-1.5 cursor-pointer select-none font-semibold text-slate-300 ml-2" title="Reproduce un beep de confirmación o error">
-                                        <input type="checkbox" id="chkSonidoEscaner" checked class="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-400 border-slate-600 bg-slate-800">
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none font-bold text-slate-600 ml-2" title="Reproduce un beep de confirmación o error">
+                                        <input type="checkbox" id="chkSonidoEscaner" checked class="w-3.5 h-3.5 rounded text-theme-primary focus:ring-theme-primary border-slate-300">
                                         <span class="text-[11px]">🔊 Beep</span>
                                     </label>
                                 </div>
@@ -2586,16 +2708,16 @@
                             <form id="formEscanerTraspasos" onsubmit="procesarEscaneoTraspasoSubmit(event)" class="relative flex items-center gap-2">
                                 <div class="relative flex-1">
                                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                                        <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
                                     </div>
-                                    <input type="text" id="inputCodigoEscaner" autocomplete="off" placeholder="Apunte el escáner al ticket o ingrese folio (ej. TFC005761) y presione Enter..." class="w-full pl-12 pr-28 py-3.5 bg-slate-950/80 border-2 border-amber-400/60 focus:border-amber-400 rounded-2xl text-sm font-mono font-bold text-amber-300 placeholder-slate-400 shadow-inner focus:outline-none focus:ring-4 focus:ring-amber-400/20 uppercase tracking-wider">
+                                    <input type="text" id="inputCodigoEscaner" autocomplete="off" placeholder="Apunte el escáner al ticket o ingrese folio (ej. TFC005761) y presione Enter..." class="w-full pl-11 pr-24 py-3 bg-slate-50 border border-slate-200 focus:border-slate-400 focus:bg-white rounded-2xl text-sm font-mono font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-theme-primary transition uppercase tracking-wider">
                                     <div class="absolute inset-y-0 right-0 pr-2 flex items-center gap-1.5">
-                                        <button type="button" onclick="limpiarEscanerAlmacen()" class="px-2.5 py-1 text-[11px] font-bold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition">
+                                        <button type="button" onclick="limpiarEscanerAlmacen()" class="px-2.5 py-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer">
                                             Limpiar
                                         </button>
                                     </div>
                                 </div>
-                                <button type="submit" id="btnBuscarEscaner" class="px-5 py-3.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-2xl text-xs uppercase tracking-wider transition shadow-lg shadow-amber-400/20 flex items-center gap-2 flex-shrink-0 cursor-pointer">
+                                <button type="submit" id="btnBuscarEscaner" class="px-5 py-3 btn-theme-primary text-white font-black rounded-2xl text-xs uppercase tracking-wider transition shadow-sm flex items-center gap-2 flex-shrink-0 cursor-pointer">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                                     <span>Procesar</span>
                                 </button>
@@ -2760,8 +2882,8 @@
                     <!-- ================= SUB-MÓDULO 2: CATÁLOGO Y STOCK DE ALMACENES ================= -->
                     <div id="subAlmCatalogoContent" class="hidden space-y-4">
                         <!-- KPI Cards -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+                            <div class="bg-white p-4 rounded-2xl border border-blue-200 bg-blue-50/15 shadow-sm flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
                                     🏢
                                 </div>
@@ -2769,6 +2891,18 @@
                                     <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Total Almacenes</div>
                                     <div id="kpiAlmTotal" class="text-lg font-black text-slate-900">--</div>
                                     <div class="text-[10px] text-slate-400 font-medium" id="kpiAlmConStock">-- con inventario</div>
+                                </div>
+                            </div>
+
+                            <!-- Card SKUs / Ítems Activos -->
+                            <div class="bg-white p-4 rounded-2xl border border-indigo-200 bg-indigo-50/25 shadow-sm flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-lg">
+                                    🏷️
+                                </div>
+                                <div>
+                                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700">SKUs / Ítems Activos</div>
+                                    <div id="kpiAlmSkusActivos" class="text-lg font-black text-indigo-900">104,272</div>
+                                    <div class="text-[10px] text-indigo-600 font-medium">Catálogo vigente</div>
                                 </div>
                             </div>
 
@@ -2852,52 +2986,53 @@
                     <!-- ================= SUB-MÓDULO 3: RECEPCIÓN DE COMPRA EN ALMACÉN ================= -->
                     <div id="subAlmRecepcionContent" class="hidden space-y-4">
                         <!-- Banner Hero con Acciones Rápidas -->
-                        <div class="bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-950 p-5 rounded-3xl text-white shadow-xl border border-emerald-900/40 space-y-4">
-                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-4">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl border border-emerald-500/30 shadow-inner">
+                        <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4 relative overflow-hidden">
+                            <div class="absolute inset-x-0 top-0 h-1" style="background: var(--theme-gradient);"></div>
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                                <div class="flex items-center gap-3.5">
+                                    <div class="w-12 h-12 rounded-2xl btn-theme-primary text-white flex items-center justify-center text-xl shadow-md flex-shrink-0">
                                         📥
                                     </div>
                                     <div>
                                         <div class="flex items-center gap-2">
-                                            <h3 class="text-base font-black uppercase tracking-wide text-white">Recepción de Órdenes de Compra</h3>
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                            <h3 class="text-base font-black uppercase tracking-wide text-slate-900">Recepción de Órdenes de Compra</h3>
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                                                 Microsip En Línea
                                             </span>
                                         </div>
-                                        <p class="text-xs text-slate-300 font-medium">Recepción y entrada directa al inventario del almacén para órdenes de compra pendientes.</p>
+                                        <p class="text-xs text-slate-500 font-medium mt-0.5">Recepción y entrada directa al inventario del almacén para órdenes de compra pendientes.</p>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button type="button" onclick="cargarOrdenesCompraAlmacen()" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-emerald-950 transition cursor-pointer">
+                                    <button type="button" onclick="cargarOrdenesCompraAlmacen()" class="inline-flex items-center gap-1.5 px-3.5 py-2 btn-theme-primary text-white text-xs font-black rounded-xl shadow-sm transition cursor-pointer">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                                         <span>Actualizar Lista</span>
                                     </button>
                                 </div>
                             </div>
 
-                            <!-- Tarjetas KPI -->
+                            <!-- Tarjetas KPI Estilo Dashboard Ejecutivo -->
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                <div class="bg-slate-900/80 p-3 rounded-2xl border border-slate-800">
+                                <div class="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 shadow-2xs hover:shadow-xs transition">
                                     <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Órdenes Pendientes</div>
-                                    <div id="kpiAlmRecTotal" class="text-xl font-black text-white mt-0.5">--</div>
-                                    <div class="text-[10px] text-emerald-400 font-semibold" id="kpiAlmRecSubTotal">Esperando almacén</div>
+                                    <div id="kpiAlmRecTotal" class="text-2xl font-black text-slate-900 tracking-tight mt-1">--</div>
+                                    <div class="text-[10px] text-emerald-700 font-bold mt-0.5" id="kpiAlmRecSubTotal">Esperando almacén</div>
                                 </div>
-                                <div class="bg-slate-900/80 p-3 rounded-2xl border border-slate-800">
+                                <div class="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 shadow-2xs hover:shadow-xs transition">
                                     <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Piezas por Recibir</div>
-                                    <div id="kpiAlmRecPiezas" class="text-xl font-black text-amber-400 mt-0.5">--</div>
-                                    <div class="text-[10px] text-slate-400 font-medium">Unidades totales</div>
+                                    <div id="kpiAlmRecPiezas" class="text-2xl font-black text-slate-900 tracking-tight mt-1">--</div>
+                                    <div class="text-[10px] text-slate-500 font-medium mt-0.5">Unidades totales</div>
                                 </div>
-                                <div class="bg-slate-900/80 p-3 rounded-2xl border border-slate-800">
+                                <div class="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 shadow-2xs hover:shadow-xs transition">
                                     <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Importe Pendiente</div>
-                                    <div id="kpiAlmRecImporte" class="text-xl font-black text-emerald-300 mt-0.5">--</div>
-                                    <div class="text-[10px] text-slate-400 font-medium">En compras activas</div>
+                                    <div id="kpiAlmRecImporte" class="text-2xl font-black text-emerald-700 tracking-tight mt-1">--</div>
+                                    <div class="text-[10px] text-slate-500 font-medium mt-0.5">En compras activas</div>
                                 </div>
-                                <div class="bg-slate-900/80 p-3 rounded-2xl border border-slate-800">
+                                <div class="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 shadow-2xs hover:shadow-xs transition">
                                     <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Almacenes Destino</div>
-                                    <div id="kpiAlmRecAlmacenes" class="text-xl font-black text-blue-400 mt-0.5">--</div>
-                                    <div class="text-[10px] text-slate-400 font-medium">Con entregas programadas</div>
+                                    <div id="kpiAlmRecAlmacenes" class="text-2xl font-black text-slate-900 tracking-tight mt-1">--</div>
+                                    <div class="text-[10px] text-slate-500 font-medium mt-0.5">Con entregas programadas</div>
                                 </div>
                             </div>
                         </div>
@@ -2969,25 +3104,26 @@
                     <!-- ================= SUB-MÓDULO 4: CONTROL DE CASCOS (BATERÍAS USADAS Y BONIFICACIONES) ================= -->
                     <div id="subAlmCascosContent" class="hidden space-y-4">
                         <!-- Hero Banner -->
-                        <div class="bg-gradient-to-r from-cyan-950 via-slate-900 to-slate-950 p-5 rounded-3xl text-white shadow-xl border border-cyan-900/40 space-y-4">
-                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-4">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xl border border-cyan-500/30 shadow-inner">
+                        <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden space-y-4">
+                            <div class="absolute inset-x-0 top-0 h-1" style="background: var(--theme-gradient);"></div>
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                                <div class="flex items-center gap-3.5">
+                                    <div class="w-12 h-12 rounded-2xl btn-theme-primary text-white flex items-center justify-center text-xl shadow-md flex-shrink-0">
                                         🔋
                                     </div>
                                     <div>
                                         <div class="flex items-center gap-2">
-                                            <h3 class="text-base font-black uppercase tracking-wide text-white">Control de Cascos (Baterías Usadas)</h3>
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                                            <h3 class="text-base sm:text-lg font-black uppercase tracking-wide text-slate-900">Control de Cascos (Baterías Usadas)</h3>
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                                                 B01 – B07 Microsip
                                             </span>
                                         </div>
-                                        <p class="text-xs text-slate-300 font-medium">Monitoreo de existencias de cascos, recepciones entre sucursales/CEDIS con verificación física y facturas con cascos pendientes.</p>
+                                        <p class="text-xs text-slate-500 font-medium mt-0.5">Monitoreo de existencias de cascos, recepciones entre sucursales/CEDIS con verificación física y facturas con cascos pendientes.</p>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button type="button" onclick="cargarInventarioCascos()" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-cyan-950 transition cursor-pointer">
+                                    <button type="button" onclick="cargarInventarioCascos()" class="btn-theme-primary text-white rounded-xl font-black text-xs px-3.5 py-2 shadow-sm flex items-center gap-1.5 cursor-pointer">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                                         <span>Actualizar Stock</span>
                                     </button>
@@ -2995,29 +3131,29 @@
                             </div>
 
                             <!-- Píldoras de Navegación Interna de Cascos -->
-                            <div class="flex flex-wrap items-center justify-between gap-3">
-                                <div class="flex flex-wrap items-center gap-1.5 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800">
-                                    <button type="button" id="cascosInnerTabBtn_inventario" onclick="cambiarInnerTabCascos('inventario')" class="px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-2 bg-slate-900 text-white shadow-md cursor-pointer">
+                            <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+                                <div class="flex flex-wrap items-center gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/80">
+                                    <button type="button" id="cascosInnerTabBtn_inventario" onclick="cambiarInnerTabCascos('inventario')" class="px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-2 btn-theme-primary text-white shadow-sm cursor-pointer">
                                         <span>📊 Existencias (B01–B07)</span>
                                     </button>
-                                    <button type="button" id="cascosInnerTabBtn_recepciones" onclick="cambiarInnerTabCascos('recepciones')" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
+                                    <button type="button" id="cascosInnerTabBtn_recepciones" onclick="cambiarInnerTabCascos('recepciones')" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 cursor-pointer">
                                         <span>📥 Recepciones / Traspasos</span>
                                     </button>
-                                    <button type="button" id="cascosInnerTabBtn_pendientes" onclick="cambiarInnerTabCascos('pendientes')" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
+                                    <button type="button" id="cascosInnerTabBtn_pendientes" onclick="cambiarInnerTabCascos('pendientes')" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 cursor-pointer">
                                         <span>⏳ Cascos Pendientes (Clientes)</span>
                                     </button>
-                                    <button type="button" id="cascosInnerTabBtn_config" onclick="cambiarInnerTabCascos('config')" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
+                                    <button type="button" id="cascosInnerTabBtn_config" onclick="cambiarInnerTabCascos('config')" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 cursor-pointer">
                                         <span>⚙️ Configuración</span>
                                     </button>
                                 </div>
                                 <div class="flex items-center gap-3">
                                     <div class="text-right">
-                                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Almacén de Cascos</div>
-                                        <div id="cascosNombreAlmacenBadge" class="text-xs font-black text-cyan-300">Almacen Usados</div>
+                                        <div class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Almacén de Cascos</div>
+                                        <div id="cascosNombreAlmacenBadge" class="text-xs font-black text-slate-800">Almacen Usados</div>
                                     </div>
-                                    <div class="px-3 py-1.5 rounded-xl bg-cyan-900/40 border border-cyan-500/30 text-right">
-                                        <div class="text-[10px] font-bold text-cyan-200 uppercase tracking-wider">Stock Total</div>
-                                        <div id="cascosTotalStockBadge" class="text-sm font-black text-white">-- Piezas</div>
+                                    <div class="px-3.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200/90 text-right">
+                                        <div class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Stock Total</div>
+                                        <div id="cascosTotalStockBadge" class="text-sm font-black text-slate-900 font-mono">-- Piezas</div>
                                     </div>
                                 </div>
                             </div>
@@ -3629,28 +3765,29 @@
                                 </div>
 
                                 <!-- Banner de la Caja Actual -->
-                                <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-4 rounded-3xl text-white shadow-xl border border-indigo-900/50 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-12 h-12 rounded-2xl bg-amber-400/20 text-amber-400 font-mono font-black text-xl flex items-center justify-center border border-amber-400/30">
+                                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                    <div class="absolute inset-x-0 top-0 h-1" style="background: var(--theme-gradient);"></div>
+                                    <div class="flex items-center gap-3.5">
+                                        <div class="w-12 h-12 rounded-2xl btn-theme-primary text-white font-mono font-black text-xl flex items-center justify-center shadow-md">
                                             📦
                                         </div>
                                         <div>
                                             <div class="flex items-center gap-2">
-                                                <h4 class="text-sm font-black uppercase text-white tracking-wide">Empacando Caja: <span id="txtFolioCajaActual" class="text-amber-400 font-mono font-black text-base">--</span></h4>
-                                                <span id="badgeCajaNumero" class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
+                                                <h4 class="text-sm font-black uppercase text-slate-900 tracking-wide">Empacando Caja: <span id="txtFolioCajaActual" class="text-indigo-600 font-mono font-black text-base">--</span></h4>
+                                                <span id="badgeCajaNumero" class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
                                                     Caja 1
                                                 </span>
                                             </div>
-                                            <p class="text-[11px] text-slate-300 font-medium">Escanea los códigos de barras de los artículos que van dentro de esta caja específica.</p>
+                                            <p class="text-xs text-slate-500 font-medium mt-0.5">Escanea los códigos de barras de los artículos que van dentro de esta caja específica.</p>
                                         </div>
                                     </div>
 
-                                    <div class="flex items-center gap-2">
-                                        <div class="text-right mr-2">
-                                            <div class="text-[10px] text-slate-400 font-bold uppercase">Piezas en esta caja</div>
-                                            <div id="txtTotalPiezasCajaActual" class="text-lg font-black text-white font-mono">0 pzas</div>
+                                    <div class="flex items-center gap-3">
+                                        <div class="text-right mr-1">
+                                            <div class="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Piezas en esta caja</div>
+                                            <div id="txtTotalPiezasCajaActual" class="text-lg font-black text-slate-900 font-mono">0 pzas</div>
                                         </div>
-                                        <button type="button" onclick="cerrarCajaActualEImprimir()" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-950/30 transition cursor-pointer flex items-center gap-2">
+                                        <button type="button" onclick="cerrarCajaActualEImprimir()" class="btn-theme-primary text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-2">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                                             <span>Cerrar Caja e Imprimir Etiqueta</span>
                                         </button>
@@ -3739,28 +3876,29 @@
 
                         <!-- VISTA 3: CHOFER / MENSAJERO (ESCANEAR CAJAS AL SUBIR AL CAMIÓN) -->
                         <div id="vistaEmbarquesChofer" class="hidden space-y-4">
-                            <div class="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 p-5 rounded-3xl text-white shadow-xl border border-blue-900/50 space-y-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-12 h-12 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-2xl border border-blue-500/30">
+                            <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden space-y-4">
+                                <div class="absolute inset-x-0 top-0 h-1" style="background: var(--theme-gradient);"></div>
+                                <div class="flex items-center gap-3.5">
+                                    <div class="w-12 h-12 rounded-2xl btn-theme-primary text-white flex items-center justify-center text-2xl shadow-md">
                                         🚛
                                     </div>
                                     <div>
-                                        <h4 class="text-sm font-black uppercase text-white tracking-wide">Salida a Ruta: Escaneo del Chofer / Mensajero</h4>
-                                        <p class="text-xs text-slate-300 font-medium">El mensajero escanea el código de barras de cada caja al subirla a la camioneta. Esto actualiza su estatus a <strong>EN TRÁNSITO</strong> en tiempo real.</p>
+                                        <h4 class="text-base font-black uppercase text-slate-900 tracking-wide">Salida a Ruta: Escaneo del Chofer / Mensajero</h4>
+                                        <p class="text-xs text-slate-500 font-medium mt-0.5">El mensajero escanea el código de barras de cada caja al subirla a la camioneta. Esto actualiza su estatus a <strong class="text-slate-800">EN TRÁNSITO</strong> en tiempo real.</p>
                                     </div>
                                 </div>
 
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
                                     <div class="md:col-span-1">
-                                        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Nombre del Chofer / Mensajero</label>
-                                        <input type="text" id="inputChoferNombre" placeholder="Nombre de chofer o mensajero..." class="w-full text-xs font-bold px-3 py-2 bg-slate-800 text-white border border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                        <label class="block text-[10px] font-extrabold uppercase text-slate-400 mb-1">Nombre del Chofer / Mensajero</label>
+                                        <input type="text" id="inputChoferNombre" placeholder="Nombre de chofer o mensajero..." class="w-full text-xs font-bold px-3.5 py-2.5 bg-slate-50 text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-theme-primary focus:bg-white focus:outline-none transition">
                                     </div>
                                     <div class="md:col-span-2">
-                                        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Escanear Código de Caja (ej. 10003-1)</label>
+                                        <label class="block text-[10px] font-extrabold uppercase text-slate-400 mb-1">Escanear Código de Caja (ej. 10003-1)</label>
                                         <div class="relative">
-                                            <input type="text" id="inputEscanerChoferCaja" autofocus placeholder="Pasa la pistola sobre la etiqueta Zebra de la caja..." class="w-full text-sm font-mono font-black pl-11 pr-24 py-2 bg-slate-800 text-white border-2 border-blue-500 rounded-xl focus:ring-4 focus:ring-blue-500/30 focus:outline-none">
-                                            <svg class="w-5 h-5 text-blue-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
-                                            <button type="button" onclick="procesarScanChofer()" class="absolute right-1.5 top-1.5 px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg transition cursor-pointer">
+                                            <input type="text" id="inputEscanerChoferCaja" autofocus placeholder="Pasa la pistola sobre la etiqueta Zebra de la caja..." class="w-full text-sm font-mono font-black pl-11 pr-24 py-2.5 bg-slate-50 text-slate-900 border-2 border-slate-200 focus:border-indigo-500 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:bg-white focus:outline-none transition">
+                                            <svg class="w-5 h-5 text-indigo-500 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                                            <button type="button" onclick="procesarScanChofer()" class="absolute right-1.5 top-1.5 px-3.5 py-1.5 btn-theme-primary text-white font-black text-xs rounded-lg transition shadow-xs cursor-pointer">
                                                 Cargar
                                             </button>
                                         </div>
@@ -3817,27 +3955,28 @@
                     <!-- ================= SUB-MÓDULO: RECEPCIÓN DE EMBARQUES EN SUCURSAL ================= -->
                     <div id="subSucRecepcionContent" class="space-y-4">
                     <!-- Banner de Recepción de Cajas -->
-                    <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-5 rounded-3xl text-white shadow-xl border border-indigo-900/50 space-y-4">
-                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-3">
-                            <div class="flex items-center gap-3">
-                                <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl border border-indigo-500/30">
+                    <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden space-y-4">
+                        <div class="absolute inset-x-0 top-0 h-1" style="background: var(--theme-gradient);"></div>
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                            <div class="flex items-center gap-3.5">
+                                <div class="w-12 h-12 rounded-2xl btn-theme-primary text-white flex items-center justify-center text-2xl shadow-md">
                                     📥
                                 </div>
                                 <div>
                                     <div class="flex items-center gap-2">
-                                        <h3 class="text-base font-black uppercase tracking-wide text-white">Recepción de Cajas en Tienda</h3>
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping"></span>
+                                        <h3 class="text-base sm:text-lg font-black uppercase tracking-wide text-slate-900">Recepción de Cajas en Tienda</h3>
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                                             Escáner de Llegada
                                         </span>
                                     </div>
-                                    <p class="text-xs text-slate-300 font-medium">Escanea la etiqueta Zebra de cada caja que llega en el camión a esta sucursal para confirmar su entrega.</p>
+                                    <p class="text-xs text-slate-500 font-medium mt-0.5">Escanea la etiqueta Zebra de cada caja que llega en el camión a esta sucursal para confirmar su entrega.</p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
                                 <div class="text-right">
-                                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Sucursal de Recepción:</span>
-                                    <select id="selectSucursalRecepcionActual" onchange="cargarCajasPendientesSucursal()" class="text-xs font-black bg-slate-800 text-amber-300 border border-slate-700 rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-indigo-500">
+                                    <span class="text-[10px] uppercase font-extrabold text-slate-400 block mb-1">Sucursal de Recepción:</span>
+                                    <select id="selectSucursalRecepcionActual" onchange="cargarCajasPendientesSucursal()" class="text-xs font-bold bg-slate-50 text-slate-800 border border-slate-200 rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-theme-primary">
                                         <option value="">Cargando tienda...</option>
                                     </select>
                                 </div>
@@ -3847,18 +3986,18 @@
                         <!-- Escáner Hero para la Sucursal -->
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
                             <div class="md:col-span-2">
-                                <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Escanear Código de Caja al Recibir (ej. 10003-1)</label>
+                                <label class="block text-[10px] font-extrabold uppercase text-slate-400 mb-1">Escanear Código de Caja al Recibir (ej. 10003-1)</label>
                                 <div class="relative">
-                                    <input type="text" id="inputEscanerRecepcionCaja" autofocus placeholder="Pasa la pistola sobre la etiqueta Zebra de la caja recibida..." class="w-full text-sm font-mono font-black pl-11 pr-24 py-2.5 bg-slate-800 text-white border-2 border-indigo-500 rounded-xl focus:ring-4 focus:ring-indigo-500/30 focus:outline-none">
-                                    <svg class="w-5 h-5 text-indigo-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
-                                    <button type="button" onclick="procesarScanRecepcionSucursal()" class="absolute right-1.5 top-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg transition cursor-pointer">
+                                    <input type="text" id="inputEscanerRecepcionCaja" autofocus placeholder="Pasa la pistola sobre la etiqueta Zebra de la caja recibida..." class="w-full text-sm font-mono font-black pl-11 pr-24 py-2.5 bg-slate-50 text-slate-900 border-2 border-slate-200 focus:border-indigo-500 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:bg-white focus:outline-none transition">
+                                    <svg class="w-5 h-5 text-indigo-500 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                                    <button type="button" onclick="procesarScanRecepcionSucursal()" class="absolute right-1.5 top-1.5 px-3.5 py-1.5 btn-theme-primary text-white font-black text-xs rounded-lg transition shadow-xs cursor-pointer">
                                         Recibir
                                     </button>
                                 </div>
                             </div>
-                            <div class="bg-slate-800/80 p-3 rounded-2xl border border-slate-700/80 flex flex-col justify-center">
-                                <span class="text-[10px] font-bold uppercase text-slate-400">Cajas en Ruta hacia esta tienda</span>
-                                <span id="txtTotalCajasPendientesSucursal" class="text-lg font-black text-amber-300 font-mono">0 cajas</span>
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 flex flex-col justify-center">
+                                <span class="text-[10px] font-extrabold uppercase text-slate-400">Cajas en Ruta hacia esta tienda</span>
+                                <span id="txtTotalCajasPendientesSucursal" class="text-xl font-black text-slate-900 font-mono mt-0.5">0 cajas</span>
                             </div>
                         </div>
                     </div>
@@ -3898,31 +4037,32 @@
                 <!-- ================= MÓDULO ADMINISTRACIÓN DEL NEGOCIO ================= -->
                 <div id="moduloAdministracionContent" class="hidden space-y-4">
                     <!-- Header Banner -->
-                    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 rounded-3xl text-white shadow-xl border border-slate-700/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="absolute inset-x-0 top-0 h-1" style="background: var(--theme-gradient);"></div>
                         <div class="flex items-center gap-3.5">
-                            <div class="w-12 h-12 rounded-2xl bg-amber-400/20 text-amber-400 flex items-center justify-center text-2xl border border-amber-400/30 shadow-inner">
+                            <div class="w-12 h-12 rounded-2xl btn-theme-primary text-white flex items-center justify-center text-2xl shadow-md">
                                 💼
                             </div>
                             <div>
                                 <div class="flex items-center gap-2">
-                                    <h2 class="text-base font-black text-white uppercase tracking-wider">Administración del Negocio</h2>
-                                    <span class="text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/30">Finanzas & Flujo</span>
+                                    <h2 class="text-base sm:text-lg font-black text-slate-900 uppercase tracking-wide">Administración del Negocio</h2>
+                                    <span class="text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full border border-slate-200">Finanzas & Flujo</span>
                                 </div>
-                                <p class="text-xs text-slate-300 font-medium mt-0.5">Control de ingresos, compras a proveedores, cobranza por forma de pago y balance operativo.</p>
+                                <p class="text-xs text-slate-500 font-medium mt-0.5">Control de ingresos, compras a proveedores, cobranza por forma de pago y balance operativo.</p>
                             </div>
                         </div>
 
                         <!-- Filtros de Fecha -->
-                        <div class="flex flex-wrap items-center gap-2.5 bg-slate-950/60 px-3.5 py-2 rounded-2xl border border-slate-700/60">
+                        <div class="flex flex-wrap items-center gap-2.5 bg-slate-50 px-3.5 py-2 rounded-2xl border border-slate-200">
                             <div class="flex items-center gap-1.5 text-xs">
-                                <span class="text-slate-400 font-bold text-[11px]">Desde:</span>
-                                <input type="date" id="fechaIniAdminNegocio" class="bg-slate-800 text-white font-bold text-xs rounded-xl px-2.5 py-1 border border-slate-600 focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                                <span class="text-slate-500 font-extrabold text-[11px]">Desde:</span>
+                                <input type="date" id="fechaIniAdminNegocio" class="bg-white text-slate-800 font-bold text-xs rounded-xl px-2.5 py-1.5 border border-slate-200 focus:ring-2 focus:ring-theme-primary focus:outline-none">
                             </div>
                             <div class="flex items-center gap-1.5 text-xs">
-                                <span class="text-slate-400 font-bold text-[11px]">Hasta:</span>
-                                <input type="date" id="fechaFinAdminNegocio" class="bg-slate-800 text-white font-bold text-xs rounded-xl px-2.5 py-1 border border-slate-600 focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                                <span class="text-slate-500 font-extrabold text-[11px]">Hasta:</span>
+                                <input type="date" id="fechaFinAdminNegocio" class="bg-white text-slate-800 font-bold text-xs rounded-xl px-2.5 py-1.5 border border-slate-200 focus:ring-2 focus:ring-theme-primary focus:outline-none">
                             </div>
-                            <button type="button" onclick="consultarResumenNegocio()" class="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition shadow-sm cursor-pointer">
+                            <button type="button" onclick="consultarResumenNegocio()" class="btn-theme-primary text-white font-black rounded-xl text-xs px-3.5 py-2 uppercase tracking-wider transition shadow-sm cursor-pointer">
                                 Consultar
                             </button>
                         </div>
@@ -6556,60 +6696,68 @@
         </div>
     </div>
 
-    <!-- ================= MODAL: ETIQUETA ZEBRA (4" x 6" TÉRMICA Y ZPL) ================= -->
+    <!-- ================= MODAL: ETIQUETA TÉRMICA LABEL TD-401 / ZEBRA ================= -->
     <div id="modalEtiquetaZebra" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto">
         <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 my-8">
             <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-bold flex items-center justify-center">
+                    <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-lg">
                         🏷️
                     </div>
                     <div>
-                        <h3 class="text-sm font-black text-slate-900">Etiqueta Térmica para Caja (Zebra)</h3>
-                        <p class="text-[10px] text-slate-400">Formato estándar 4" x 6" (100mm x 150mm) / Código 128</p>
+                        <h3 class="text-sm font-black text-slate-900">Etiqueta Térmica de Caja (Label TD-401)</h3>
+                        <p class="text-[10px] text-slate-400">Impresora USB TD-401 (4" x 6" / 100x150 mm) &bull; Código 128</p>
                     </div>
                 </div>
                 <button type="button" onclick="cerrarModalEtiquetaZebra()" class="text-slate-400 hover:text-slate-600 font-bold text-sm p-1 rounded-lg">✕</button>
             </div>
 
-            <!-- Previsualización de la Etiqueta (Estilo Físico Térmico 4x6) -->
-            <div id="areaImpresionEtiqueta" class="border-2 border-dashed border-slate-300 rounded-2xl p-4 bg-white text-slate-900 mx-auto max-w-[340px] shadow-sm space-y-3 font-sans">
-                <!-- Header Etiqueta con Logo y Tipo -->
-                <div class="flex items-center justify-between border-b-2 border-slate-900 pb-2">
-                    <img id="etiquetaLogoImg" src="/api/logo/logo%20bc" alt="Logo Empresa" class="h-8 max-w-[120px] object-contain">
-                    <div class="text-right">
-                        <div class="text-[9px] font-black uppercase tracking-wider text-slate-600">EMBARQUE / TRASPASO</div>
-                        <div id="etiquetaFechaCaja" class="text-[9px] font-mono font-bold text-slate-500">2026-10-09</div>
+            <!-- Previsualización de la Etiqueta (Diseño exacto al boceto de almacén) -->
+            <div id="areaImpresionEtiqueta" class="border-4 border-black rounded-lg p-3 bg-white text-black mx-auto max-w-[360px] shadow-sm font-sans space-y-2 select-none">
+                <!-- SECCIÓN SUPERIOR: SIGLAS DESTINO (IZQ) | LOGO Y DATOS EMPRESA (DER) -->
+                <div class="flex border-2 border-black">
+                    <!-- IZQUIERDA: SIGLAS GIGANTES SUCURSAL DESTINO -->
+                    <div class="w-[45%] border-r-2 border-black flex items-center justify-center p-3 text-center bg-white">
+                        <div id="lblSucursalSiglas" class="text-6xl font-black font-sans tracking-tight text-black">AE</div>
+                    </div>
+                    <!-- DERECHA: LOGO (ARRIBA) + DATOS EMPRESA (ABAJO) -->
+                    <div class="w-[55%] flex flex-col">
+                        <!-- LOGO EMPRESA -->
+                        <div class="border-b-2 border-black flex items-center justify-center p-2 bg-white min-h-[50px]">
+                            <img id="lblLogoImg" src="/api/logo/logo%20bc" alt="Logo" class="max-h-10 max-w-[130px] object-contain">
+                        </div>
+                        <!-- DATOS EMPRESA -->
+                        <div class="p-2 space-y-0.5 text-left text-black bg-white flex flex-col justify-center">
+                            <div id="lblEmpresaNombre" class="text-[11px] font-black uppercase tracking-wide leading-tight">BATTERY CENTER</div>
+                            <div class="text-[9px] font-bold text-slate-800 leading-tight">CEDIS Matriz Torreón, Coah.</div>
+                            <div class="text-[8px] font-mono text-slate-700">RFC: BCR210815AAA</div>
+                            <div id="lblCajaIndice" class="text-[9px] font-bold text-slate-900 mt-0.5">CAJA 1 DE 1</div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Folio Caja en Grande -->
-                <div class="text-center py-1 bg-slate-100 rounded-xl border border-slate-300">
-                    <div class="text-[9px] font-extrabold uppercase text-slate-500">FOLIO DE CAJA</div>
-                    <div id="etiquetaFolioCaja" class="text-2xl font-black font-mono tracking-wider text-slate-900">10003-1</div>
-                    <div id="etiquetaIndiceCaja" class="text-[10px] font-black uppercase text-indigo-700">CAJA 1 DE 1</div>
-                </div>
+                <!-- SECCIÓN MEDIA: ARTÍCULOS - CÓDIGOS Y DESCRIPCIÓN (SIN CANTIDAD) -->
+                <div class="border-2 border-black p-2 space-y-1.5 bg-white">
+                    <div class="border-b border-black pb-1">
+                        <span class="text-[10px] font-black uppercase tracking-wide text-black">ARTÍCULOS</span>
+                    </div>
 
-                <!-- Código de Barras SVG (Code 128) -->
-                <div class="text-center py-1">
-                    <div id="etiquetaBarcodeSvg" class="flex justify-center items-center h-16 w-full"></div>
-                    <div id="etiquetaBarcodeTexto" class="text-[10px] font-mono font-bold tracking-widest text-slate-800 mt-1">10003-1</div>
-                </div>
+                    <!-- Lista de artículos con Clave y Nombre (SIN cantidades) -->
+                    <div id="lblListaArticulos" class="space-y-1 text-[9px] font-mono font-bold text-black max-h-48 overflow-y-auto pr-1">
+                        <!-- Generado dinámicamente -->
+                    </div>
 
-                <!-- Datos del Destino y Contenido -->
-                <div class="border-t-2 border-b-2 border-slate-900 py-2 space-y-1 text-left">
-                    <div class="text-[9px] font-bold uppercase text-slate-500">DESTINO:</div>
-                    <div id="etiquetaDestinoNombre" class="text-sm font-black uppercase text-slate-900 truncate">SUCURSAL CENTRO</div>
-                    <div class="flex items-center justify-between pt-1 text-[11px] font-bold text-slate-700">
-                        <span>TOTAL PIEZAS EN CAJA:</span>
-                        <span id="etiquetaTotalPiezas" class="text-sm font-black font-mono text-slate-950 bg-slate-200 px-2 py-0.5 rounded">12 PZAS</span>
+                    <!-- RECUADRO INTERNO: FOLIO Y FECHA -->
+                    <div class="border-2 border-black rounded p-1.5 bg-slate-50 flex items-center justify-between text-[11px] font-bold text-black mt-2">
+                        <div>FOLIO: <span id="lblFolioCaja" class="font-mono font-black text-xs">10003-1</span></div>
+                        <div>FECHA: <span id="lblFechaCaja" class="font-mono font-bold text-[10px]">2026-10-12</span></div>
                     </div>
                 </div>
 
-                <!-- Referencia Documento y Pie -->
-                <div class="flex items-center justify-between text-[9px] font-mono text-slate-600 pt-0.5">
-                    <div>DOCTO: <span id="etiquetaDoctoRef" class="font-bold">--</span></div>
-                    <div>SURTIDO POR: <span id="etiquetaUsuarioEmbarque" class="font-bold">ADMIN</span></div>
+                <!-- SECCIÓN INFERIOR: CÓDIGO DE BARRAS HORIZONTAL -->
+                <div class="border-2 border-black p-2 text-center flex flex-col items-center justify-center bg-white">
+                    <div id="lblBarcodeContainer" class="flex justify-center items-center h-14 w-full"></div>
+                    <div id="lblBarcodeTexto" class="text-[12px] font-mono font-black tracking-widest text-black mt-1">10003-1</div>
                 </div>
             </div>
 
@@ -6618,22 +6766,37 @@
 
             <!-- Botones de Acción -->
             <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                <button type="button" onclick="copiarCodigoZplClipboard()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-                    <span>Copiar ZPL</span>
-                </button>
+                <div class="flex items-center gap-1.5">
+                    <button type="button" onclick="probarImpresoraUsbDirecta('TSPL')" title="Enviar prueba TSPL a Label TD-401" class="px-2.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1">
+                        <span>⚡ Prueba TSPL</span>
+                    </button>
+                    <button type="button" onclick="probarImpresoraUsbDirecta('ZPL')" title="Enviar prueba ZPL a Label TD-401" class="px-2.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1">
+                        <span>⚡ Prueba ZPL</span>
+                    </button>
+                    <button type="button" onclick="copiarCodigoZplClipboard()" title="Copiar código ZPL" class="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer">
+                        <span>📋 ZPL</span>
+                    </button>
+                </div>
                 <div class="flex items-center gap-2">
-                    <button type="button" onclick="cerrarModalEtiquetaZebra()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer">
+                    <button type="button" onclick="cerrarModalEtiquetaZebra()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer">
                         Cerrar
                     </button>
-                    <button type="button" onclick="imprimirEtiquetaZebraNativa()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs rounded-xl shadow-md shadow-blue-600/30 transition cursor-pointer flex items-center gap-2">
+                    <button type="button" onclick="imprimirEtiquetaUsbDirecta('ZPL')" title="Imprimir usando ZPL nativo" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-md shadow-emerald-600/30 transition cursor-pointer flex items-center gap-1.5">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                        <span>Imprimir en Zebra</span>
+                        <span>🖨️ Imprimir USB (ZPL)</span>
+                    </button>
+                    <button type="button" onclick="imprimirEtiquetaUsbDirecta('TSPL')" title="Imprimir usando TSPL" class="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1">
+                        <span>USB TSPL</span>
+                    </button>
+                    <button type="button" onclick="imprimirEtiquetaZebraNativa()" title="Imprimir usando diálogo de Windows/Navegador" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer flex items-center gap-1">
+                        <span>Navegador</span>
                     </button>
                 </div>
             </div>
+
         </div>
     </div>
+
 
     <!-- ================= MODAL: DETALLE DE EMBARQUE Y TIMELINE ================= -->
     <div id="modalDetalleEmbarque" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm overflow-y-auto">
@@ -6724,15 +6887,15 @@
 
     <!-- SCRIPT DE CONTROL -->
     <!-- SCRIPTS MODULARES -->
-    <script src="/static/js/paleta_tema.js?v=20261009_v6"></script>
-    <script src="/static/js/app_core.js?v=20261009_v7"></script>
-    <script src="/static/js/modulo_dashboard.js?v=20261010_v1"></script>
-    <script src="/static/js/modulo_ventas.js?v=20261010_v1"></script>
-    <script src="/static/js/modulo_pv.js?v=20261010_v2"></script>
+    <script src="/static/js/paleta_tema.js?v=20261012_v1"></script>
+    <script src="/static/js/app_core.js?v=20261012_v1"></script>
+    <script src="/static/js/modulo_dashboard.js?v=20261012_v1"></script>
+    <script src="/static/js/modulo_ventas.js?v=20261012_v1"></script>
+    <script src="/static/js/modulo_pv.js?v=20261012_v1"></script>
     <script src="/static/js/modulo_administracion.js?v=20261009_v6"></script>
-    <script src="/static/js/modulo_almacen.js?v=20261009_v6"></script>
-    <script src="/static/js/modulo_embarques.js?v=20261010_v7"></script>
-    <script src="/static/js/modulo_compras.js?v=20261009_v6"></script>
+    <script src="/static/js/modulo_almacen.js?v=20261012_v1"></script>
+    <script src="/static/js/modulo_embarques.js?v=20261012_v3"></script>
+    <script src="/static/js/modulo_compras.js?v=20261012_v1"></script>
     <script src="/static/js/modulo_ciosa.js?v=20261009_v6"></script>
     <script src="/static/js/modulo_traspasos.js?v=20261009_v6"></script>
     <script src="/static/js/modulo_buscador_traspasos.js?v=20261009_v6"></script>
@@ -6741,6 +6904,6 @@
     <script src="/static/js/modulo_bot_whatsapp.js?v=20261009_v6"></script>
     <script src="/static/js/modulo_vendedores_comisiones.js?v=20261009_v6"></script>
     <script src="/static/js/modulo_config_comisiones.js?v=20261009_v6"></script>
-    <script src="/static/js/modulo_cascos.js?v=20261009_v6"></script>
+    <script src="/static/js/modulo_cascos.js?v=20261012_v1"></script>
 </body>
 </html>

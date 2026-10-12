@@ -135,13 +135,19 @@ function renderizarKPIs(kpis) {
     if (elVenta) elVenta.textContent = formatearMoneda(kpis.total_venta);
     if (elTickets) elTickets.textContent = `${formatearNumero(kpis.total_tickets)} tickets (Prom. ${formatearMoneda(kpis.ticket_promedio)})`;
 
-    // 2. Inventario Total
-    const elStock = document.getElementById('kpiTotalStock');
-    const elAlmacenes = document.getElementById('kpiTotalAlmacenes');
-    if (elStock) elStock.textContent = `${formatearNumero(kpis.total_stock_piezas)} pzas`;
-    if (elAlmacenes) elAlmacenes.textContent = `${kpis.sucursales_activas || 0} sucursales activas del Grupo`;
+    // 2. Utilidad de Venta (Margen Bruto)
+    const elUtil = document.getElementById('kpiUtilidadVenta');
+    const elMarg = document.getElementById('kpiMargenUtilidad');
+    if (elUtil) elUtil.textContent = formatearMoneda(kpis.utilidad_venta);
+    if (elMarg) elMarg.textContent = `Margen bruto: ${kpis.margen_utilidad_pct || 0}%`;
 
-    // 3. Artículo Estrella
+    // 3. Costo Total de Almacén (Valor de Inventario)
+    const elCostoInv = document.getElementById('kpiCostoInventario');
+    const elStock = document.getElementById('kpiTotalStock');
+    if (elCostoInv) elCostoInv.textContent = formatearMoneda(kpis.costo_inventario_total);
+    if (elStock) elStock.textContent = `${formatearNumero(kpis.total_stock_piezas)} pzas en stock`;
+
+    // 4. Artículo Estrella
     const est = kpis.articulo_estrella || {};
     const elArtClave = document.getElementById('kpiArticuloClave');
     const elArtNombre = document.getElementById('kpiArticuloNombre');
@@ -150,14 +156,14 @@ function renderizarKPIs(kpis) {
     if (elArtNombre) elArtNombre.textContent = est.nombre || "Sin ventas";
     if (elArtVenta) elArtVenta.textContent = `${formatearNumero(est.piezas)} pzas (${formatearMoneda(est.importe)})`;
 
-    // 4. Sucursal Líder
+    // 5. Sucursal Líder
     const lid = kpis.sucursal_lider || {};
     const elSucNombre = document.getElementById('kpiSucursalLiderNombre');
     const elSucMonto = document.getElementById('kpiSucursalLiderMonto');
     if (elSucNombre) elSucNombre.textContent = lid.nombre || "N/D";
     if (elSucMonto) elSucMonto.textContent = formatearMoneda(lid.total);
 
-    // 5. Mejor Cliente
+    // 6. Mejor Cliente
     const cli = kpis.cliente_estrella || {};
     const elCliNombre = document.getElementById('kpiClienteNombre');
     const elCliVenta = document.getElementById('kpiClienteVenta');
@@ -356,6 +362,16 @@ function renderizarGraficoTendencia(tendencia) {
 }
 
 let criterioTopArticulosActual = 'piezas';
+let limiteTopArticulosActual = 15;
+
+function cambiarLimiteTopArticulos(limite) {
+    limiteTopArticulosActual = parseInt(limite, 10) || 15;
+    const tit = document.getElementById('tituloTopArticulos');
+    if (tit) {
+        tit.innerHTML = `<span>🥇</span> Top ${limiteTopArticulosActual} Artículos Más Vendidos`;
+    }
+    cambiarCriterioTopArticulos(criterioTopArticulosActual);
+}
 
 function cambiarCriterioTopArticulos(criterio) {
     criterioTopArticulosActual = criterio;
@@ -402,7 +418,7 @@ function cambiarCriterioTopArticulos(criterio) {
                 lista = [...(dashboardDataCache.top_articulos || [])].sort((a, b) => b.piezas - a.piezas);
             }
         }
-        renderizarTablaTopArticulos(lista);
+        renderizarTablaTopArticulos(lista.slice(0, limiteTopArticulosActual));
     }
 }
 

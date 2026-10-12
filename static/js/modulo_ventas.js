@@ -30,8 +30,50 @@ async function cargarModuloVentas() {
     // 2. Cargar listado de sucursales en el selector
     await cargarSelectAlmacenesVentas();
 
-    // 3. Ejecutar consultas con los filtros seleccionados (en paralelo, son independientes)
-    await Promise.allSettled([consultarResumenVentas(), buscarTicketsVentas()]);
+    // 3. Ejecutar consultas con los filtros seleccionados (en paralelo)
+    await Promise.allSettled([
+        cargarIndicadoresVentasHoy(),
+        consultarResumenVentas(), 
+        buscarTicketsVentas()
+    ]);
+}
+
+async function cargarIndicadoresVentasHoy() {
+    const selAlm = document.getElementById('selectSucursalVentas');
+    const almId = selAlm ? selAlm.value : '';
+    try {
+        const query = almId ? `?almacen_id=${encodeURIComponent(almId)}` : '';
+        const res = await fetch(`/api/ventas/indicadores-hoy${query}`);
+        const data = await res.json();
+        if (data.success && data.indicadores) {
+            const ind = data.indicadores;
+            const elHoy = document.getElementById('kpiVentasHoyTotal');
+            const elTcks = document.getElementById('kpiVentasHoyTickets');
+            const elProm = document.getElementById('kpiVentasHoyPromedio');
+            const elDif = document.getElementById('kpiVentasHoyDif');
+            const elAyer = document.getElementById('kpiVentasAyerTotal');
+            const elAyerTcks = document.getElementById('kpiVentasAyerTickets');
+
+            if (elHoy) elHoy.textContent = formatearMoneda(ind.total_hoy);
+            if (elTcks) elTcks.textContent = formatearNumero(ind.tickets_hoy);
+            if (elProm) elProm.textContent = formatearMoneda(ind.ticket_promedio);
+            if (elAyer) elAyer.textContent = formatearMoneda(ind.total_ayer);
+            if (elAyerTcks) elAyerTcks.textContent = `${formatearNumero(ind.tickets_ayer)} tickets cerrados`;
+
+            if (elDif) {
+                const varPct = ind.variacion_pct || 0;
+                if (varPct >= 0) {
+                    elDif.className = "text-[10px] font-bold text-emerald-600 mt-0.5";
+                    elDif.textContent = `vs ayer: +${varPct}%`;
+                } else {
+                    elDif.className = "text-[10px] font-bold text-rose-600 mt-0.5";
+                    elDif.textContent = `vs ayer: ${varPct}%`;
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Error al cargar indicadores de ventas de hoy:", e);
+    }
 }
 
 async function cargarSelectAlmacenesVentas() {

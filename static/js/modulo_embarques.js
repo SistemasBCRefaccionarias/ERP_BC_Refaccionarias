@@ -1007,16 +1007,48 @@ function limpiarContenedorCajasEmpacadas() {
     if (txtTotal) txtTotal.textContent = '0 Cajas';
 }
 
-// ================= CERRAR CAJA ACTUAL E IMPRIMIR ETIQUETA ZEBRA =================
+// ================= CERRAR CAJA ACTUAL E IMPRIMIR ETIQUETA =================
 async function cerrarCajaActualEImprimir() {
-    if (!embarqueActivo) return;
-    if (partidasCajaActual.length === 0) {
-        mostrarAlerta('error', 'La caja actual está vacía. Escanea al menos un artículo antes de cerrarla.');
-        reproducirSonidoEscaner('error');
+    if (!embarqueActivo) {
+        mostrarAlerta('error', 'No hay ningún embarque seleccionado o activo.');
         return;
     }
 
+    // Si la caja actual no tiene artículos escaneados uno a uno:
+    if (partidasCajaActual.length === 0) {
+        if (partidasEmbarquePlanificadas && partidasEmbarquePlanificadas.length > 0) {
+            // Auto-empacar los artículos pendientes del traspaso en esta caja
+            const pendientes = partidasEmbarquePlanificadas.filter(p => (Number(p.unidades_empacadas || 0) < Number(p.unidades_requeridas || 0)));
+            const items = pendientes.length > 0 ? pendientes : partidasEmbarquePlanificadas;
+            items.forEach(p => {
+                const req = Number(p.unidades_requeridas || 1);
+                const emp = Number(p.unidades_empacadas || 0);
+                const cant = Math.max(1, req - emp);
+                p.unidades_empacadas = (p.unidades_empacadas || 0) + cant;
+                partidasCajaActual.push({
+                    articulo_id: p.articulo_id,
+                    clave: p.clave,
+                    nombre: p.nombre,
+                    codigo_barras: p.codigo_barras || p.clave,
+                    unidades: cant
+                });
+            });
+            renderizarChecklistTraspaso();
+            renderizarTablaCajaActual();
+            mostrarAlerta('info', `Empacando ${partidasCajaActual.length} artículos del traspaso en esta caja...`);
+        } else {
+            // Partida genérica para permitir cerrar caja e imprimir etiqueta
+            partidasCajaActual.push({
+                clave: 'TRASPASO',
+                nombre: 'MERCANCIA EN CAJA DE TRASPASO',
+                unidades: 1
+            });
+            renderizarTablaCajaActual();
+        }
+    }
+
     try {
+        mostrarAlerta('info', 'Guardando caja y generando etiqueta...');
         const res = await fetch('/api/embarques/cerrar-caja', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1033,12 +1065,12 @@ async function cerrarCajaActualEImprimir() {
         }
 
         reproducirSonidoEscaner('caja_cerrada');
-        mostrarAlerta('success', `¡Caja ${data.folio_caja} cerrada exitosamente! Abriendo vista previa de etiqueta Zebra.`);
+        mostrarAlerta('success', `¡Caja ${data.folio_caja} cerrada exitosamente! Imprimiendo etiqueta...`);
 
         // Agregar tarjeta de caja cerrada
         agregarTarjetaCajaCerrada(data.folio_caja, data.piezas_caja, data.total_cajas);
 
-        // Abrir modal de etiqueta Zebra
+        // Abrir modal de vista previa
         abrirModalEtiquetaZebra(data.etiqueta);
 
         // Preparar siguiente caja
@@ -1051,10 +1083,14 @@ async function cerrarCajaActualEImprimir() {
         // Limpiar aviso
         const aviso = document.getElementById('avisoUltimoArticuloEscaneado');
         if (aviso) aviso.classList.add('hidden');
+
+        // ¡DISPARAR LA IMPRESIÓN DIRECTA AUTOMÁTICA EN LA IMPRESORA USB LABEL TD-401!
+        imprimirEtiquetaUsbDirecta();
     } catch (e) {
-        mostrarAlerta('error', 'Error al cerrar caja en el servidor.');
+        mostrarAlerta('error', 'Error al cerrar caja o enviar impresión: ' + e.message);
     }
 }
+
 
 function agregarTarjetaCajaCerrada(folioCaja, piezas, totalCajas) {
     const cont = document.getElementById('contenedorCajasEmpacadas');
@@ -1140,6 +1176,7 @@ function cancelarSesionEmpaqueActual() {
 }
 
 // ================= MODAL ETIQUETA ZEBRA (4" x 6") =================
+// ================= MODAL ETIQUETA TÉRMICA LABEL TD-401 / ZEBRA (4" x 6") =================
 function abrirModalEtiquetaZebra(etiqueta) {
     if (!etiqueta) return;
     etiquetaActualData = etiqueta;
@@ -1147,30 +1184,66 @@ function abrirModalEtiquetaZebra(etiqueta) {
     const modal = document.getElementById('modalEtiquetaZebra');
     if (!modal) return;
 
-    // Asignar Logo de la empresa activa
-    const imgLogo = document.getElementById('etiquetaLogoImg');
+    // 1. Siglas Gigantes y Nombre de Sucursal Destino
+    const lblSiglas = document.getElementById('lblSucursalSiglas');
+    if (lblSiglas) lblSiglas.textContent = etiqueta.sucursal_siglas || 'AE';
+
+    const lblDestino = document.getElementById('lblSucursalDestinoNombre');
+    if (lblDestino) lblDestino.textContent = etiqueta.destino || 'SUCURSAL DESTINO';
+
+    // 2. Logo de la empresa
+    const imgLogo = document.getElementById('lblLogoImg');
     if (imgLogo) {
         const logoTag = etiqueta.logo_tag || 'logo bc';
         imgLogo.src = `/api/logo/${encodeURIComponent(logoTag)}`;
     }
 
-    document.getElementById('etiquetaFechaCaja').textContent = etiqueta.fecha_hora || new Date().toISOString().slice(0, 10);
-    document.getElementById('etiquetaFolioCaja').textContent = etiqueta.folio_caja;
-    document.getElementById('etiquetaIndiceCaja').textContent = `CAJA ${etiqueta.numero_caja} DE ${etiqueta.total_cajas}`;
-    document.getElementById('etiquetaDestinoNombre').textContent = etiqueta.destino || 'DESTINO';
-    document.getElementById('etiquetaTotalPiezas').textContent = `${etiqueta.piezas} PZAS`;
-    document.getElementById('etiquetaDoctoRef').textContent = etiqueta.documento_referencia || '--';
-    document.getElementById('etiquetaUsuarioEmbarque').textContent = etiqueta.operador || 'ALMACEN';
+    // 3. Datos Empresa
+    const lblEmpresa = document.getElementById('lblEmpresaNombre');
+    if (lblEmpresa) lblEmpresa.textContent = etiqueta.nombre_empresa || 'BATTERY CENTER';
 
-    // Barcode SVG
-    const svgCont = document.getElementById('etiquetaBarcodeSvg');
-    if (svgCont) {
-        svgCont.innerHTML = generarSvgCode128(etiqueta.folio_caja, 60);
+    const lblCajaInd = document.getElementById('lblCajaIndice');
+    if (lblCajaInd) {
+        const numCaja = etiqueta.numero_caja || 1;
+        const totCajas = etiqueta.total_cajas || 1;
+        lblCajaInd.textContent = `CAJA ${numCaja} DE ${totCajas}`;
     }
-    const txtBar = document.getElementById('etiquetaBarcodeTexto');
-    if (txtBar) txtBar.textContent = etiqueta.folio_caja;
 
-    // Guardar ZPL
+    // 4. Lista de Artículos (CÓDIGO Y DESCRIPCIÓN SIN CANTIDAD)
+    const contArticulos = document.getElementById('lblListaArticulos');
+    if (contArticulos) {
+        const articulos = etiqueta.detalles || etiqueta.resumen_articulos || [];
+        if (articulos.length === 0) {
+            contArticulos.innerHTML = '<div class="text-slate-400 italic py-1">Sin artículos registrados en esta caja</div>';
+        } else {
+            contArticulos.innerHTML = articulos.map((art, idx) => `
+                <div class="flex items-start justify-between py-1 border-b border-dashed border-slate-200">
+                    <span class="font-mono font-black text-slate-900 shrink-0 mr-2 text-[10px]">${art.clave || '--'}</span>
+                    <span class="text-slate-800 text-right truncate text-[9px] font-semibold">${art.nombre || ''}</span>
+                </div>
+            `).join('');
+        }
+    }
+
+    // 5. Folio de Caja y Fecha
+    const lblFolio = document.getElementById('lblFolioCaja');
+    if (lblFolio) lblFolio.textContent = etiqueta.folio_caja || '--';
+
+    const lblFecha = document.getElementById('lblFechaCaja');
+    if (lblFecha) {
+        const rawF = etiqueta.fecha_empaque || etiqueta.fecha_hora || new Date().toISOString();
+        lblFecha.textContent = rawF.slice(0, 10);
+    }
+
+    // 6. Código de Barras SVG (Code 128)
+    const svgCont = document.getElementById('lblBarcodeContainer');
+    if (svgCont) {
+        svgCont.innerHTML = generarSvgCode128(etiqueta.folio_caja || '10001-1', 50);
+    }
+    const txtBar = document.getElementById('lblBarcodeTexto');
+    if (txtBar) txtBar.textContent = etiqueta.folio_caja || '--';
+
+    // 7. Guardar ZPL para copiado
     const inputZpl = document.getElementById('inputZplCodigoActual');
     if (inputZpl) inputZpl.value = etiqueta.zpl || '';
 
@@ -1203,9 +1276,55 @@ function copiarCodigoZplClipboard() {
         return;
     }
     navigator.clipboard.writeText(zpl).then(() => {
-        mostrarAlerta('success', 'Código ZPL copiado al portapapeles. Listo para enviar directo a la impresora Zebra.');
+        mostrarAlerta('success', 'Código ZPL copiado al portapapeles. Listo para enviar directo a la impresora Zebra/TD-401.');
     });
 }
+
+async function imprimirEtiquetaUsbDirecta(modo = 'ZPL') {
+    if (!etiquetaActualData) {
+        mostrarAlerta('error', 'No hay datos de etiqueta activos para imprimir.');
+        return;
+    }
+    try {
+        mostrarAlerta('info', `Enviando etiqueta (${modo}) a impresora USB Label TD-401...`);
+        const res = await fetch('/api/embarques/imprimir-etiqueta-usb', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ etiqueta: etiquetaActualData, impresora: 'Label TD-401', modo: modo })
+        });
+        const data = await res.json();
+        if (data.success) {
+            mostrarAlerta('success', data.mensaje || '¡Etiqueta impresa correctamente en Label TD-401!');
+        } else {
+            mostrarAlerta('error', data.error || 'Error al imprimir en Label TD-401.');
+        }
+    } catch (e) {
+        mostrarAlerta('error', 'Fallo de conexión al enviar impresión a Label TD-401: ' + e.message);
+    }
+}
+
+async function probarImpresoraUsbDirecta(modo = 'ZPL') {
+    try {
+        mostrarAlerta('info', `Enviando prueba (${modo}) a Label TD-401...`);
+        const res = await fetch('/api/embarques/probar-impresora-usb', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ impresora: 'Label TD-401', modo: modo })
+        });
+        const data = await res.json();
+        if (data.success) {
+            mostrarAlerta('success', data.mensaje || '¡Prueba enviada con éxito!');
+            if (data.etiqueta) {
+                abrirModalEtiquetaZebra(data.etiqueta);
+            }
+        } else {
+            mostrarAlerta('error', data.error || 'Error al realizar prueba en la impresora.');
+        }
+    } catch (e) {
+        mostrarAlerta('error', 'Fallo al comunicarse con el servidor: ' + e.message);
+    }
+}
+
 
 function imprimirEtiquetaZebraNativa() {
     const cont = document.getElementById('areaImpresionEtiqueta');
@@ -1217,7 +1336,7 @@ function imprimirEtiquetaZebraNativa() {
         <html>
         <head>
             <meta charset="utf-8">
-            <title>Etiqueta ${etiquetaActualData?.folio_caja || 'Zebra'}</title>
+            <title>Etiqueta ${etiquetaActualData?.folio_caja || 'TD-401'}</title>
             <style>
                 @page {
                     size: 4in 6in;
@@ -1225,14 +1344,14 @@ function imprimirEtiquetaZebraNativa() {
                 }
                 body {
                     margin: 0;
-                    padding: 6mm;
-                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+                    padding: 5mm;
+                    font-family: Arial, sans-serif;
                     background: #fff;
                     color: #000;
                     width: 3.8in;
                     box-sizing: border-box;
                 }
-                svg { max-width: 100%; height: 60px; }
+                svg { max-width: 100%; height: 50px; }
             </style>
         </head>
         <body onload="window.print(); window.close();">
@@ -1242,6 +1361,7 @@ function imprimirEtiquetaZebraNativa() {
     `);
     ventana.document.close();
 }
+
 
 // ================= CHOFER / MENSAJERO: ESCANEAR CAJAS PARA SALIDA =================
 async function procesarScanChofer() {
@@ -1460,9 +1580,13 @@ async function verDetalleEmbarqueModal(embId) {
                     </td>
                     <td class="p-2.5 text-xs text-slate-600">${c.chofer_nombre || '--'}</td>
                     <td class="p-2.5 text-right">
-                        <button type="button" onclick="cargarEtiquetaZebraPorFolio('${c.folio_caja}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-blue-700 font-bold rounded-lg text-xs cursor-pointer">
-                            🏷️ Etiqueta
-                        </button>
+                        <div class="inline-flex items-center gap-1">
+                            ${c.firma_path ? `<a href="${c.firma_path}" target="_blank" class="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg text-xs inline-flex items-center gap-1" title="Ver Firma Digital">✍️ Firma</a>` : ''}
+                            ${c.foto_path ? `<a href="${c.foto_path}" target="_blank" class="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg text-xs inline-flex items-center gap-1" title="Ver Foto de Evidencia">📷 Foto</a>` : ''}
+                            <button type="button" onclick="cargarEtiquetaZebraPorFolio('${c.folio_caja}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-blue-700 font-bold rounded-lg text-xs cursor-pointer">
+                                🏷️ Etiqueta
+                            </button>
+                        </div>
                     </td>
                 `;
                 tbodyCajas.appendChild(tr);

@@ -21,15 +21,23 @@ def buscar_clientes():
         conn = conectar_db()
         cur = conn.cursor()
 
+        conds = [
+            "c.ESTATUS = 'A'",
+            "UPPER(c.NOMBRE) NOT LIKE '%NO USAR%'",
+            "UPPER(c.NOMBRE) NOT LIKE '%NO UTILIZAR%'",
+            "UPPER(c.NOMBRE) NOT LIKE '%INACTIVO%'",
+            "UPPER(c.NOMBRE) NOT LIKE '%CANCELADO%'"
+        ]
+        params = []
+
         if q:
-            filtro = "WHERE UPPER(c.NOMBRE) LIKE ? OR UPPER(c.CONTACTO1) LIKE ? OR CAST(c.CLIENTE_ID AS VARCHAR(20)) LIKE ?"
-            params = [f"%{q}%", f"%{q}%", f"%{q}%"]
-        else:
-            filtro = ""
-            params = []
+            conds.append("(UPPER(c.NOMBRE) LIKE ? OR UPPER(c.CONTACTO1) LIKE ? OR CAST(c.CLIENTE_ID AS VARCHAR(20)) LIKE ?)")
+            params.extend([f"%{q}%", f"%{q}%", f"%{q}%"])
+
+        filtro = "WHERE " + " AND ".join(conds)
 
         cur.execute(f"""
-            SELECT FIRST 20
+            SELECT FIRST 25
                 c.CLIENTE_ID,
                 TRIM(c.NOMBRE) AS NOMBRE,
                 COALESCE(c.LIMITE_CREDITO, 0) AS LIMITE_CREDITO,
@@ -62,6 +70,82 @@ def buscar_clientes():
     except Exception as e:
         if conn: conn.close()
         return jsonify({"success": False, "error": str(e), "clientes": []}), 500
+
+@pv_bp.route('/api/pv/clientes/crear', methods=['POST'])
+def crear_cliente_pv():
+    data = request.get_json() or {}
+    nombre = str(data.get('nombre', '')).strip().upper()
+    telefono = str(data.get('telefono', '')).strip()
+    email = str(data.get('email', '')).strip()
+    rfc = str(data.get('rfc', '')).strip().upper() or 'XAXX010101000'
+    direccion = str(data.get('direccion', '')).strip()
+
+    if not nombre:
+        return jsonify({"success": False, "error": "El nombre del cliente es obligatorio"}), 400
+
+    conn = None
+    try:
+        conn = conectar_db()
+        cur = conn.cursor()
+
+        # 1. Generar ID único para el cliente
+        cur.execute("SELECT GEN_ID(ID_CATALOGOS, 1) FROM RDB$DATABASE")
+        cliente_id = int(cur.fetchone()[0])
+
+        # 2. Insertar en CLIENTES
+        # Valores predeterminados: Moneda MXN (1), Contado (591), Público General (156299), Zona General (582107), Cobrador (823692)
+        cur.execute("""
+            INSERT INTO CLIENTES (
+                CLIENTE_ID, NOMBRE, CONTACTO1, ESTATUS, MONEDA_ID, COND_PAGO_ID, 
+                TIPO_CLIENTE_ID, ZONA_CLIENTE_ID, COBRADOR_ID, COBRAR_IMPUESTOS, 
+                LIMITE_CREDITO, FECHA_HORA_CREACION
+            ) VALUES (?, ?, ?, 'A', 1, 591, 156299, 582107, 823692, 'S', 0, CURRENT_TIMESTAMP)
+        """, (cliente_id, nombre, telefono[:50] if telefono else None))
+
+        # 3. Generar clave para el cliente
+        clave_cli = f"CLI{cliente_id}"
+        cur.execute("SELECT GEN_ID(ID_CATALOGOS, 1) FROM RDB$DATABASE")
+        clave_cli_id = int(cur.fetchone()[0])
+
+        cur.execute("""
+            INSERT INTO CLAVES_CLIENTES (
+                CLAVE_CLIENTE_ID, CLAVE_CLIENTE, CLIENTE_ID, ROL_CLAVE_CLI_ID
+            ) VALUES (?, ?, ?, 1)
+        """, (clave_cli_id, clave_cli, cliente_id))
+
+        # 4. Insertar Dirección Principal en DIRS_CLIENTES
+        cur.execute("SELECT GEN_ID(ID_CATALOGOS, 1) FROM RDB$DATABASE")
+        dir_id = int(cur.fetchone()[0])
+
+        cur.execute("""
+            INSERT INTO DIRS_CLIENTES (
+                DIR_CLI_ID, CLIENTE_ID, NOMBRE_CALLE, TELEFONO1, EMAIL, RFC_CURP, ES_DIR_PPAL
+            ) VALUES (?, ?, ?, ?, ?, ?, 'S')
+        """, (dir_id, cliente_id, (direccion[:100] if direccion else 'CIUDAD'), (telefono[:30] if telefono else None), (email[:100] if email else None), rfc[:18]))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        nuevo_cliente = {
+            "id": cliente_id,
+            "clave": clave_cli,
+            "nombre": nombre,
+            "telefono": telefono,
+            "email": email,
+            "rfc": rfc,
+            "direccion": direccion,
+            "limite_credito": 0,
+            "tipo_cliente": "Público General",
+            "forma_cobro": "CONTADO"
+        }
+
+        return jsonify({"success": True, "cliente": nuevo_cliente, "mensaje": "Cliente dado de alta exitosamente en Microsip"})
+    except Exception as e:
+        if conn:
+            try: conn.rollback(); conn.close()
+            except: pass
+        return jsonify({"success": False, "error": f"Error al crear cliente: {str(e)}"}), 500
 
 @pv_bp.route('/api/pv/clientes/detalle/<int:cliente_id>', methods=['GET'])
 def detalle_cliente(cliente_id):
@@ -380,7 +464,7 @@ def sugerencias_articulos_pos():
         alm_id_num = int(almacen_id) if almacen_id and almacen_id.isdigit() else (session.get('sucursal_id') or 620110)
 
         listas = resolver_listas_precios(conn)
-        precio_id = listas.get("talleres", 67032) or 42
+        precio_id = listas.get("publico", 42) or 42
 
         params = [alm_id_num, precio_id, f"%{q}%", f"%{q}%"]
         if col_equiv:
@@ -611,7 +695,12 @@ def buscar_articulos_pos():
         alm_id_num = int(almacen_id) if (almacen_id and str(almacen_id).isdigit()) else (int(usr_suc_id) if usr_suc_id else None)
 
         # Preparar filtro WHERE en Microsip
-        filtros_mp = []
+        filtros_mp = [
+            "a.ESTATUS = 'A'",
+            "UPPER(a.NOMBRE) NOT LIKE '%NO USAR%'",
+            "UPPER(a.NOMBRE) NOT LIKE '%NO UTILIZAR%'",
+            "UPPER(a.NOMBRE) NOT LIKE '%INACTIVO%'"
+        ]
         params_mp = []
 
         if q_term:
@@ -713,6 +802,22 @@ def buscar_articulos_pos():
 
         where_mp_sql = f"WHERE {' AND '.join(filtros_mp)}" if filtros_mp else ""
 
+        # Determinar si el cliente seleccionado tiene condición de taller/flotilla/mayoreo
+        cliente_id_param = request.args.get('cliente_id', '').strip()
+        es_cliente_taller = False
+        if cliente_id_param and cliente_id_param.isdigit():
+            try:
+                cur.execute("SELECT TIPO_CLIENTE FROM CLIENTES WHERE CLIENTE_ID = ?", (int(cliente_id_param),))
+                r_tc = cur.fetchone()
+                if r_tc and r_tc[0]:
+                    tc_str = str(r_tc[0]).upper()
+                    if "TALLER" in tc_str or "FLOTILLA" in tc_str or "MAYOREO" in tc_str:
+                        es_cliente_taller = True
+            except:
+                pass
+
+        precio_venta_expr = "COALESCE(p_tal.PRECIO, p_pub.PRECIO, 0)" if es_cliente_taller else "COALESCE(p_pub.PRECIO, p_tal.PRECIO, 0)"
+
         # Query principal de artículos (FASE 1: Búsqueda rápida indexada)
         cur.execute(f"""
             SELECT FIRST {limite}
@@ -720,7 +825,7 @@ def buscar_articulos_pos():
                 TRIM(ca.CLAVE_ARTICULO) AS CLAVE,
                 TRIM(a.NOMBRE) AS NOMBRE,
                 COALESCE(TRIM(la.EQUIVALENCIA1), '') AS EQUIV,
-                COALESCE(p_tal.PRECIO, p_pub.PRECIO, 0) AS PRECIO_VENTA,
+                {precio_venta_expr} AS PRECIO_VENTA,
                 COALESCE(p_pub.PRECIO, 0) AS PRECIO_PUBLICO,
                 COALESCE(p_tal.PRECIO, 0) AS PRECIO_TALLER,
                 COALESCE(TRIM(li.NOMBRE), '') AS LINEA
@@ -875,14 +980,32 @@ def detalle_articulo_pos(clave):
         precio_taller_id = listas.get("talleres", 67032)
         precio_pub_id = listas.get("publico", 42)
 
-        cur.execute("""
+        # Evaluar condición del cliente si fue proporcionado
+        cliente_id_param = request.args.get('cliente_id', '').strip()
+        es_cliente_taller = False
+        if cliente_id_param and cliente_id_param.isdigit():
+            try:
+                cur.execute("SELECT TIPO_CLIENTE FROM CLIENTES WHERE CLIENTE_ID = ?", (int(cliente_id_param),))
+                r_tc = cur.fetchone()
+                if r_tc and r_tc[0]:
+                    tc_str = str(r_tc[0]).upper()
+                    if "TALLER" in tc_str or "FLOTILLA" in tc_str or "MAYOREO" in tc_str:
+                        es_cliente_taller = True
+            except:
+                pass
+
+        precio_venta_expr = "COALESCE(p_tal.PRECIO, p_pub.PRECIO, 0)" if es_cliente_taller else "COALESCE(p_pub.PRECIO, p_tal.PRECIO, 0)"
+
+        cur.execute(f"""
             SELECT FIRST 1
                 a.ARTICULO_ID,
                 TRIM(ca.CLAVE_ARTICULO) AS CLAVE,
                 TRIM(a.NOMBRE) AS NOMBRE,
                 COALESCE(TRIM(la.EQUIVALENCIA1), '') AS EQUIV,
-                COALESCE(p_tal.PRECIO, p_pub.PRECIO, 0) AS PRECIO_VENTA,
-                COALESCE(TRIM(li.NOMBRE), '') AS LINEA
+                {precio_venta_expr} AS PRECIO_VENTA,
+                COALESCE(TRIM(li.NOMBRE), '') AS LINEA,
+                COALESCE(p_pub.PRECIO, 0) AS PRECIO_PUBLICO,
+                COALESCE(p_tal.PRECIO, 0) AS PRECIO_TALLER
             FROM ARTICULOS a
             JOIN CLAVES_ARTICULOS ca ON ca.ARTICULO_ID = a.ARTICULO_ID
             JOIN ROLES_CLAVES_ARTICULOS r ON r.ROL_CLAVE_ART_ID = ca.ROL_CLAVE_ART_ID AND r.ES_PPAL = 'S'
@@ -905,6 +1028,8 @@ def detalle_articulo_pos(clave):
         equiv_art = str(art_row[3]).strip()
         precio_art = float(art_row[4] or 0)
         linea_art = str(art_row[5]).strip()
+        precio_pub_art = float(art_row[6] or 0)
+        precio_tal_art = float(art_row[7] or 0)
 
         # Existencias desglosadas por almacén
         cur.execute("""
@@ -960,22 +1085,24 @@ def detalle_articulo_pos(clave):
 
         # Equivalencias (hasta 20)
         equivalencias = []
+        precio_eq_expr = "COALESCE(p_tal.PRECIO, p_pub.PRECIO, 0)" if es_cliente_taller else "COALESCE(p_pub.PRECIO, p_tal.PRECIO, 0)"
         if equiv_art:
-            cur.execute("""
+            cur.execute(f"""
                 SELECT FIRST 20
                     a.ARTICULO_ID,
                     TRIM(ca.CLAVE_ARTICULO) AS CLAVE,
                     TRIM(a.NOMBRE) AS NOMBRE,
-                    COALESCE(p.PRECIO, 0) AS PRECIO
+                    {precio_eq_expr} AS PRECIO
                 FROM ARTICULOS a
                 JOIN CLAVES_ARTICULOS ca ON ca.ARTICULO_ID = a.ARTICULO_ID
                 JOIN ROLES_CLAVES_ARTICULOS r ON r.ROL_CLAVE_ART_ID = ca.ROL_CLAVE_ART_ID AND r.ES_PPAL = 'S'
                 LEFT JOIN LIBRES_ARTICULOS la ON la.ARTICULO_ID = a.ARTICULO_ID
-                LEFT JOIN PRECIOS_ARTICULOS p ON p.ARTICULO_ID = a.ARTICULO_ID AND p.PRECIO_EMPRESA_ID = ?
+                LEFT JOIN PRECIOS_ARTICULOS p_pub ON p_pub.ARTICULO_ID = a.ARTICULO_ID AND p_pub.PRECIO_EMPRESA_ID = ?
+                LEFT JOIN PRECIOS_ARTICULOS p_tal ON p_tal.ARTICULO_ID = a.ARTICULO_ID AND p_tal.PRECIO_EMPRESA_ID = ?
                 WHERE (UPPER(TRIM(la.EQUIVALENCIA1)) = UPPER(TRIM(?)) OR UPPER(TRIM(ca.CLAVE_ARTICULO)) = UPPER(TRIM(?)))
                   AND a.ARTICULO_ID <> ?
                 ORDER BY a.NOMBRE ASC
-            """, (precio_taller_id, equiv_art, equiv_art, art_id))
+            """, (precio_pub_id, precio_taller_id, equiv_art, equiv_art, art_id))
 
             eq_rows = cur.fetchall()
             eq_ids = [int(r[0]) for r in eq_rows if r[0] is not None]
@@ -1009,6 +1136,9 @@ def detalle_articulo_pos(clave):
                     "stock": stk_bc_eq + stk_rt_eq
                 })
 
+            # Ordenar equivalencias por existencia descendente (prioridad piezas con stock en BC y total)
+            equivalencias.sort(key=lambda x: (x.get("stock_bc", 0) > 0, x.get("stock", 0), x.get("stock_bc", 0)), reverse=True)
+
         # Verificar foto
         tiene_foto = False
         try:
@@ -1028,6 +1158,8 @@ def detalle_articulo_pos(clave):
                 "nombre": nombre_art,
                 "equivalencia": equiv_art,
                 "precio": precio_art,
+                "precio_publico": precio_pub_art,
+                "precio_taller": precio_tal_art,
                 "linea": linea_art,
                 "tiene_foto": tiene_foto,
                 "foto_url": f"/api/articulos/foto/{art_id}" if tiene_foto else None,

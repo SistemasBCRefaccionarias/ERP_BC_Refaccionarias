@@ -1958,3 +1958,106 @@ window.comprasFiltrarSolicitudes = comprasFiltrarSolicitudes;
 window.comprasAutorizarSolicitud = comprasAutorizarSolicitud;
 window.comprasRechazarSolicitud = comprasRechazarSolicitud;
 
+// ================= REPORTE DE VENTAS PERDIDAS (DEMANDA INSATISFECHA) =================
+let listaVentasPerdidasMemoria = [];
+
+async function abrirReporteVentasPerdidasCompras() {
+    const modal = document.getElementById('modalReporteVentasPerdidasCompras');
+    if (modal) {
+        modal.classList.remove('hidden');
+        await cargarReporteVentasPerdidasCompras();
+    }
+}
+
+function cerrarReporteVentasPerdidasCompras() {
+    const modal = document.getElementById('modalReporteVentasPerdidasCompras');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function cargarReporteVentasPerdidasCompras() {
+    const tbody = document.getElementById('tbodyReporteVentasPerdidas');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-slate-400 font-medium">Cargando reporte de ventas perdidas...</td></tr>';
+
+    try {
+        const res = await fetch('/api/compras/ventas-perdidas');
+        const data = await res.json();
+        if (!data.success) {
+            if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-rose-500 font-medium">Error: ${data.error || 'No se pudo cargar'}</td></tr>`;
+            return;
+        }
+
+        listaVentasPerdidasMemoria = data.ventas_perdidas || [];
+
+        // Actualizar KPIs
+        const resumen = data.resumen || {};
+        const kpiRegs = document.getElementById('vpKpiTotalRegistros');
+        const kpiPzas = document.getElementById('vpKpiTotalPzas');
+        const kpiImp = document.getElementById('vpKpiTotalImporte');
+        const kpiMot = document.getElementById('vpKpiMotivoTop');
+
+        if (kpiRegs) kpiRegs.textContent = Number(resumen.total_registros || 0).toLocaleString('es-MX');
+        if (kpiPzas) kpiPzas.textContent = `${Number(resumen.total_piezas || 0).toLocaleString('es-MX')} pzas`;
+        if (kpiImp) kpiImp.textContent = `$${Number(resumen.total_importe || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+        
+        // Determinar motivo top
+        const motivosMap = resumen.por_motivo || {};
+        const topMotivo = Object.entries(motivosMap).sort((a,b) => b[1] - a[1])[0];
+        if (kpiMot) kpiMot.textContent = topMotivo ? `${topMotivo[0]} (${topMotivo[1]})` : 'Sin registros';
+
+        filtrarTablaVentasPerdidas();
+    } catch (e) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-rose-500 font-medium">Error de conexión: ${e.message}</td></tr>`;
+    }
+}
+
+function filtrarTablaVentasPerdidas() {
+    const q = (document.getElementById('vpFiltroBusqueda')?.value || '').trim().toLowerCase();
+    const motivoFiltro = (document.getElementById('vpFiltroMotivo')?.value || '').trim().toLowerCase();
+
+    const filtrados = listaVentasPerdidasMemoria.filter(v => {
+        const matchQ = !q || (v.clave_articulo || '').toLowerCase().includes(q)
+            || (v.articulo_nombre || '').toLowerCase().includes(q)
+            || (v.sucursal_id || '').toLowerCase().includes(q)
+            || (v.vendedor_id || '').toLowerCase().includes(q);
+        
+        const matchMotivo = !motivoFiltro || (v.motivo || '').toLowerCase().includes(motivoFiltro);
+        return matchQ && matchMotivo;
+    });
+
+    renderizarTablaVentasPerdidas(filtrados);
+}
+
+function renderizarTablaVentasPerdidas(items) {
+    const tbody = document.getElementById('tbodyReporteVentasPerdidas');
+    const conteo = document.getElementById('vpConteoFiltrados');
+    if (conteo) conteo.textContent = `${items.length} registros mostrados`;
+
+    if (!tbody) return;
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-slate-400 font-medium">No hay ventas perdidas registradas con los criterios seleccionados.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = items.map(it => {
+        const pz = Number(it.cantidad || 1);
+        const precio = Number(it.precio_estimado || 0);
+        return `
+            <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                <td class="p-3 text-[11px] font-medium text-slate-500 whitespace-nowrap">${(it.fecha || '').slice(0, 16)}</td>
+                <td class="p-3 font-bold text-slate-800">${it.sucursal_id || 'TIENDA'}</td>
+                <td class="p-3 font-mono font-black text-rose-700">${it.clave_articulo || '--'}</td>
+                <td class="p-3 font-semibold text-slate-900">${it.articulo_nombre || '--'}</td>
+                <td class="p-3 text-right font-black text-slate-900">${pz.toLocaleString('es-MX')}</td>
+                <td class="p-3 text-right font-black text-emerald-700">${precio > 0 ? '$' + precio.toLocaleString('es-MX', {minimumFractionDigits: 2}) : '--'}</td>
+                <td class="p-3 font-bold text-slate-700 text-[11px]"><span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md">${it.motivo || 'No especificado'}</span></td>
+                <td class="p-3 text-slate-500 text-[11px] italic">${it.notas || '--'}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+window.abrirReporteVentasPerdidasCompras = abrirReporteVentasPerdidasCompras;
+window.cerrarReporteVentasPerdidasCompras = cerrarReporteVentasPerdidasCompras;
+window.cargarReporteVentasPerdidasCompras = cargarReporteVentasPerdidasCompras;
+window.filtrarTablaVentasPerdidas = filtrarTablaVentasPerdidas;
+

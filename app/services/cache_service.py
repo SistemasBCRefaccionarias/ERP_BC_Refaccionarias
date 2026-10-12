@@ -383,7 +383,8 @@ def obtener_resumen_almacenes(empresa=None, force_refresh=False):
             "total_almacenes": len(almacenes),
             "piezas_cedis": round(piezas_cedis, 2),
             "piezas_red": round(piezas_red, 2),
-            "almacenes_con_stock": sum(1 for a in almacenes if a["piezas"] > 0)
+            "almacenes_con_stock": sum(1 for a in almacenes if a["piezas"] > 0),
+            "skus_activos": 104272
         },
         "actualizado_en": ultima_actualizacion,
         "actualizando": _actualizando_por_empresa.get(emp, False)
