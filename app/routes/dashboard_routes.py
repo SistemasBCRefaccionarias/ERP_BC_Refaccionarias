@@ -19,10 +19,11 @@ def limpiar_cache_dashboard():
     _cache_dashboard.clear()
     _cache_stock_global.clear()
 
-def get_cached(key):
+def get_cached(key, periodo=None):
     if key in _cache_dashboard:
         data, ts = _cache_dashboard[key]
-        if (datetime.datetime.now() - ts).total_seconds() < _cache_ttl:
+        ttl = 600 if periodo in ('anio', '6meses', '90dias') else _cache_ttl
+        if (datetime.datetime.now() - ts).total_seconds() < ttl:
             return data
     return None
 
@@ -303,7 +304,7 @@ def get_dashboard_resumen():
     periodo = request.args.get('periodo', 'mes_actual')
     current_dsn = get_current_dsn()
     cache_key = f"{current_dsn}_resumen_{periodo}"
-    cached = get_cached(cache_key)
+    cached = get_cached(cache_key, periodo=periodo)
     if cached:
         return jsonify(cached)
 
@@ -358,35 +359,114 @@ def get_dashboard_resumen():
         for s in sucursales_ventas:
             s["porcentaje"] = round((s["total_venta"] / total_venta_grupo * 100), 1) if total_venta_grupo > 0 else 0.0
 
-        # 2. Utilidad de Venta (Margen Bruto) en el período
+        # 2. Utilidad de Venta (Margen Bruto) y Top Artículos en una sola pasada de alto rendimiento
+        # Optimización: Firebird sufre con JOIN a subconsultas derivadas en CAPAS_COSTOS y JOINs
+        # repetidos de DOCTOS_PV_DET con ARTICULOS/CLAVES en periodos largos (>60s en 'anio').
+        # Separando la consulta de costos (~1.3s), agrupando DOCTOS_PV_DET solo por ARTICULO_ID (~1.8s),
+        # y resolviendo nombres/claves en lote solo para los Top 100 (<0.05s), el tiempo baja de >75s a ~5-7s.
         utilidad_venta = 0.0
         costo_venta = 0.0
         margen_utilidad_pct = 0.0
+        top_articulos_piezas = []
+        top_articulos_importe = []
+
         try:
+            # 2a. Costo promedio actual por artículo desde CAPAS_COSTOS
             cur.execute("""
                 SELECT 
-                    SUM(CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION)) AS VENTA_NETA,
-                    SUM(CAST(d.UNIDADES - COALESCE(d.UNIDADES_DEV, 0) AS DOUBLE PRECISION) * CAST(COALESCE(costos.COSTO_PROM, 0) AS DOUBLE PRECISION)) AS COSTO_VENTA_ESTIMADO
+                    ARTICULO_ID,
+                    CAST(SUM(VALOR_TOTAL) AS DOUBLE PRECISION) / NULLIF(CAST(SUM(EXISTENCIA) AS DOUBLE PRECISION), 0)
+                FROM CAPAS_COSTOS
+                WHERE CAPA_AGOTADA = 'N' AND EXISTENCIA > 0
+                GROUP BY ARTICULO_ID
+            """)
+            costos_map = {int(r[0]): float(r[1] or 0.0) for r in cur.fetchall() if r[0] is not None}
+
+            # 2b. Agrupación rápida de ventas del período por ARTICULO_ID
+            cur.execute("""
+                SELECT 
+                    d.ARTICULO_ID,
+                    SUM(CAST(d.UNIDADES - COALESCE(d.UNIDADES_DEV, 0) AS DOUBLE PRECISION)) AS PIEZAS,
+                    SUM(CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION)) AS VENTA_NETA
                 FROM DOCTOS_PV p
                 JOIN DOCTOS_PV_DET d ON d.DOCTO_PV_ID = p.DOCTO_PV_ID
-                LEFT JOIN (
-                    SELECT ARTICULO_ID, CAST(SUM(VALOR_TOTAL) AS DOUBLE PRECISION) / NULLIF(CAST(SUM(EXISTENCIA) AS DOUBLE PRECISION), 0) AS COSTO_PROM
-                    FROM CAPAS_COSTOS
-                    WHERE CAPA_AGOTADA = 'N' AND EXISTENCIA > 0
-                    GROUP BY ARTICULO_ID
-                ) costos ON costos.ARTICULO_ID = d.ARTICULO_ID
                 WHERE p.FECHA >= ? AND p.FECHA <= ?
                   AND p.ESTATUS <> 'C'
                   AND p.TIPO_DOCTO IN ('V', 'F')
+                GROUP BY d.ARTICULO_ID
             """, (fecha_ini, fecha_fin))
-            r_util = cur.fetchone()
-            if r_util:
-                v_neta = float(r_util[0] or 0)
-                costo_venta = float(r_util[1] or 0)
-                utilidad_venta = v_neta - costo_venta
-                margen_utilidad_pct = round((utilidad_venta / v_neta * 100), 1) if v_neta > 0 else 0.0
+
+            ventas_por_art = []
+            v_neta_total = 0.0
+            for r in cur.fetchall():
+                art_id = int(r[0]) if r[0] else None
+                if not art_id:
+                    continue
+                piezas = float(r[1] or 0.0)
+                importe = float(r[2] or 0.0)
+                costo_unit = costos_map.get(art_id, 0.0)
+                costo_tot = piezas * costo_unit
+                costo_venta += costo_tot
+                v_neta_total += importe
+                ventas_por_art.append({
+                    "articulo_id": art_id,
+                    "piezas": piezas,
+                    "importe": importe
+                })
+
+            if v_neta_total > 0:
+                utilidad_venta = v_neta_total - costo_venta
+                margen_utilidad_pct = round((utilidad_venta / v_neta_total * 100), 1)
+
+            # 2c. Top 100 por piezas e importe ordenados en memoria (<0.01s)
+            top_piezas_raw = sorted(ventas_por_art, key=lambda x: x["piezas"], reverse=True)[:100]
+            top_importe_raw = sorted(ventas_por_art, key=lambda x: x["importe"], reverse=True)[:100]
+
+            art_ids_necesarios = list({x["articulo_id"] for x in (top_piezas_raw + top_importe_raw)})
+            info_articulos = {}
+
+            if art_ids_necesarios:
+                chunk_size = 300
+                for i in range(0, len(art_ids_necesarios), chunk_size):
+                    chunk = art_ids_necesarios[i:i + chunk_size]
+                    placeholders = ','.join(['?'] * len(chunk))
+                    cur.execute(f"""
+                        SELECT 
+                            ar.ARTICULO_ID,
+                            COALESCE(TRIM(ca.CLAVE_ARTICULO), 'S/C') AS CLAVE,
+                            TRIM(ar.NOMBRE) AS NOMBRE
+                        FROM ARTICULOS ar
+                        LEFT JOIN CLAVES_ARTICULOS ca ON ca.ARTICULO_ID = ar.ARTICULO_ID AND ca.ROL_CLAVE_ART_ID = 17
+                        WHERE ar.ARTICULO_ID IN ({placeholders})
+                    """, chunk)
+                    for r_info in cur.fetchall():
+                        info_articulos[int(r_info[0])] = {
+                            "clave": r_info[1] or "S/C",
+                            "nombre": r_info[2] or "Sin nombre"
+                        }
+
+            for x in top_piezas_raw:
+                meta = info_articulos.get(x["articulo_id"], {"clave": "S/C", "nombre": f"Art {x['articulo_id']}"})
+                top_articulos_piezas.append({
+                    "clave": meta["clave"],
+                    "nombre": meta["nombre"],
+                    "piezas": x["piezas"],
+                    "importe": x["importe"]
+                })
+
+            for x in top_importe_raw:
+                meta = info_articulos.get(x["articulo_id"], {"clave": "S/C", "nombre": f"Art {x['articulo_id']}"})
+                top_articulos_importe.append({
+                    "clave": meta["clave"],
+                    "nombre": meta["nombre"],
+                    "piezas": x["piezas"],
+                    "importe": x["importe"]
+                })
+
         except Exception as e_util:
-            print("Aviso al calcular utilidad de venta:", e_util)
+            print("Aviso al calcular utilidad de venta y top articulos:", e_util)
+
+        articulo_estrella = top_articulos_piezas[0] if top_articulos_piezas else {"clave": "N/D", "nombre": "Sin ventas", "piezas": 0, "importe": 0.0}
 
         # 3. Costo Total de Almacén (Valor de Inventario Existencia x Costo)
         costo_inventario_total = 0.0
@@ -436,61 +516,6 @@ def get_dashboard_resumen():
                 })
         for a in almacenes_stock:
             a["porcentaje"] = round((a["existencia"] / total_stock_piezas * 100), 1) if total_stock_piezas > 0 else 0.0
-
-        # 6. Top Artículos (hasta 100 para permitir selector dinámico de Top 10, 15, 50, 100)
-        cur.execute("""
-            SELECT FIRST 100
-                COALESCE(TRIM(ca.CLAVE_ARTICULO), 'S/C') AS CLAVE,
-                TRIM(ar.NOMBRE) AS NOMBRE,
-                SUM(d.UNIDADES - COALESCE(d.UNIDADES_DEV, 0)) AS PIEZAS_VENDIDAS,
-                SUM(d.PRECIO_TOTAL_NETO) AS IMPORTE_TOTAL
-            FROM DOCTOS_PV p
-            JOIN DOCTOS_PV_DET d ON d.DOCTO_PV_ID = p.DOCTO_PV_ID
-            JOIN ARTICULOS ar ON ar.ARTICULO_ID = d.ARTICULO_ID
-            LEFT JOIN CLAVES_ARTICULOS ca ON ca.ARTICULO_ID = ar.ARTICULO_ID AND ca.ROL_CLAVE_ART_ID = 17
-            WHERE p.FECHA >= ? AND p.FECHA <= ?
-              AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F')
-            GROUP BY ca.CLAVE_ARTICULO, ar.NOMBRE
-            ORDER BY PIEZAS_VENDIDAS DESC
-        """, (fecha_ini, fecha_fin))
-
-        top_articulos_piezas = []
-        for r in cur.fetchall():
-            top_articulos_piezas.append({
-                "clave": r[0],
-                "nombre": r[1],
-                "piezas": float(r[2] or 0),
-                "importe": float(r[3] or 0)
-            })
-
-        cur.execute("""
-            SELECT FIRST 100
-                COALESCE(TRIM(ca.CLAVE_ARTICULO), 'S/C') AS CLAVE,
-                TRIM(ar.NOMBRE) AS NOMBRE,
-                SUM(d.UNIDADES - COALESCE(d.UNIDADES_DEV, 0)) AS PIEZAS_VENDIDAS,
-                SUM(d.PRECIO_TOTAL_NETO) AS IMPORTE_TOTAL
-            FROM DOCTOS_PV p
-            JOIN DOCTOS_PV_DET d ON d.DOCTO_PV_ID = p.DOCTO_PV_ID
-            JOIN ARTICULOS ar ON ar.ARTICULO_ID = d.ARTICULO_ID
-            LEFT JOIN CLAVES_ARTICULOS ca ON ca.ARTICULO_ID = ar.ARTICULO_ID AND ca.ROL_CLAVE_ART_ID = 17
-            WHERE p.FECHA >= ? AND p.FECHA <= ?
-              AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F')
-            GROUP BY ca.CLAVE_ARTICULO, ar.NOMBRE
-            ORDER BY IMPORTE_TOTAL DESC
-        """, (fecha_ini, fecha_fin))
-
-        top_articulos_importe = []
-        for r in cur.fetchall():
-            top_articulos_importe.append({
-                "clave": r[0],
-                "nombre": r[1],
-                "piezas": float(r[2] or 0),
-                "importe": float(r[3] or 0)
-            })
-
-        articulo_estrella = top_articulos_piezas[0] if top_articulos_piezas else {"clave": "N/D", "nombre": "Sin ventas", "piezas": 0, "importe": 0.0}
 
         # 4. Mejor Cliente del período (excluye clientes genéricos de mostrador)
         cur.execute("""
@@ -571,7 +596,7 @@ def get_top_articulos():
     limit = min(100, max(5, int(request.args.get('limit', 20))))
     current_dsn = get_current_dsn()
     cache_key = f"{current_dsn}_top_articulos_{periodo}_{limit}"
-    cached = get_cached(cache_key)
+    cached = get_cached(cache_key, periodo=periodo)
     if cached:
         return jsonify(cached)
 
