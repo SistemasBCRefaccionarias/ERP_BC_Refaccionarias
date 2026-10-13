@@ -603,7 +603,7 @@ def guardar_traspaso():
                     descripcion,
                     partidas
                 )
-                ok_print, msg_print = imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=1, folio=folio_imprimir, forzar=False)
+                ok_print, msg_print = imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=2, folio=folio_imprimir, forzar=False)
                 impresion_info["ejecutada"] = ok_print
                 impresion_info["mensaje"] = msg_print
             except Exception as e_pr:
@@ -708,7 +708,7 @@ def reimprimir_ticket_traspaso():
             partidas
         )
         forzar = bool(data.get('forzar', False))
-        ok_print, msg_print = imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=1, folio=folio_clean, forzar=forzar)
+        ok_print, msg_print = imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=2, folio=folio_clean, forzar=forzar)
         return jsonify({"success": ok_print, "mensaje": msg_print, "folio": folio_clean})
     except Exception as e_reimp:
         return jsonify({"success": False, "mensaje": f"Error al reimprimir: {str(e_reimp)}"}), 500
@@ -1088,7 +1088,7 @@ def reimprimir_traspaso_por_id(docto_id):
         )
         req_json = request.get_json(silent=True) or {}
         forzar = bool(req_json.get('forzar', False))
-        ok_print, msg_print = imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=1, folio=folio_clean, forzar=forzar)
+        ok_print, msg_print = imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=2, folio=folio_clean, forzar=forzar)
         return jsonify({"success": ok_print, "mensaje": msg_print, "folio": folio_clean})
     except Exception as e:
         if conn:

@@ -222,10 +222,10 @@ _HISTORIAL_IMPRESIONES_FOLIO = {}
 _HISTORIAL_LOCK = threading.Lock()
 DEDUP_WINDOW_SECONDS = 15
 
-def imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=1, folio=None, forzar=False):
+def imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=2, folio=None, forzar=False):
     """
     Envía la impresión del ticket a la impresora térmica POS-80C (192.168.1.225:9100).
-    Por defecto imprime 1 juego de tickets (copias=1) para evitar duplicación.
+    Por defecto imprime 2 tickets (Original y Copia).
     Incluye protección de deduplicación automática si se solicita reimpresión
     del mismo folio en menos de 15 segundos sin confirmación explícita (forzar=True).
     """
@@ -242,9 +242,9 @@ def imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=1, folio=
             _HISTORIAL_IMPRESIONES_FOLIO[folio_norm] = now_ts
 
     errores = []
-    num_copias = max(1, int(copias or 1))
+    num_copias = max(1, int(copias or 2))
     folio_txt = f" (Folio: {folio})" if folio else ""
-    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [POS-80C] Procesando impresión térmica{folio_txt} - {num_copias} juego(s)...")
+    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [POS-80C] Procesando impresión térmica{folio_txt} - {num_copias} ticket(s)...")
 
     # 1. Intento vía Windows Spooler nativo
     try:
@@ -260,12 +260,12 @@ def imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=1, folio=
                 time.sleep(0.6)
         
         if len(trabajos_ok) == num_copias:
-            copias_txt = "1 juego (Original y Copia)" if num_copias == 1 else f"{num_copias} copias"
+            copias_txt = "2 tickets (Original y Copia)" if num_copias == 2 else (f"1 ticket" if num_copias == 1 else f"{num_copias} tickets")
             msg_ok = f"Ticket impreso correctamente ({copias_txt}) en '{printer_name}' ({', '.join(trabajos_ok)})"
             print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [POS-80C] Spooler OK: {msg_ok}")
             return True, msg_ok
         elif len(trabajos_ok) > 0:
-            msg_part = f"Ticket impreso parcialmente ({len(trabajos_ok)}/{num_copias} copias) en '{printer_name}'"
+            msg_part = f"Ticket impreso parcialmente ({len(trabajos_ok)}/{num_copias} tickets) en '{printer_name}'"
             print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [POS-80C] Spooler parcial: {msg_part}")
             return True, msg_part
     except Exception as e_spool:
@@ -281,7 +281,7 @@ def imprimir_ticket_pos80(ticket_bytes, printer_name="POS-80C", copias=1, folio=
             if c < num_copias:
                 time.sleep(0.6)
         s.close()
-        copias_txt = "1 juego (Original y Copia)" if num_copias == 1 else f"{num_copias} copias"
+        copias_txt = "2 tickets (Original y Copia)" if num_copias == 2 else (f"1 ticket" if num_copias == 1 else f"{num_copias} tickets")
         msg_sock = f"Ticket impreso correctamente ({copias_txt}) vía IP directa 192.168.1.225:9100 (POS-80C)"
         print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [POS-80C] Socket IP OK: {msg_sock}")
         return True, msg_sock
