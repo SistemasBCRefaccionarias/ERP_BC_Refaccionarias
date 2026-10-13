@@ -175,3 +175,4 @@ def post_guardar_articulo(art_id):
         return jsonify(res)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 400
+

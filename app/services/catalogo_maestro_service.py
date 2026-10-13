@@ -611,3 +611,4 @@ def guardar_articulo_maestro(art_id, data):
         print("Aviso al sincronizar MULTIPLO/EQUIVALENCIA1 en Firebird:", e_fb)
 
     return {"success": True, "articulo_id": art_id}
+
