@@ -5,6 +5,7 @@
 
 let chartVentasSucursales = null;
 let chartTendenciaVentas = null;
+let chartGruposVentas = null;
 let dashboardDataCache = null;
 
 function formatearMoneda(val) {
@@ -92,7 +93,14 @@ async function cargarDashboard(periodo = 'mes_actual', esSilencioso = false) {
     if (btnRefrescar) btnRefrescar.classList.add('animate-spin');
 
     try {
-        const res = await fetch(`/api/dashboard/resumen?periodo=${encodeURIComponent(periodo)}`);
+        let url = `/api/dashboard/resumen?periodo=${encodeURIComponent(periodo)}`;
+        if (periodo === 'personalizado') {
+            const fIni = document.getElementById('dashFechaInicio')?.value || '';
+            const fFin = document.getElementById('dashFechaFin')?.value || '';
+            url += `&fecha_inicio=${encodeURIComponent(fIni)}&fecha_fin=${encodeURIComponent(fFin)}`;
+        }
+
+        const res = await fetch(url);
         const data = await res.json();
 
         if (!data.success) {
@@ -102,7 +110,9 @@ async function cargarDashboard(periodo = 'mes_actual', esSilencioso = false) {
         dashboardDataCache = data;
         renderizarKPIs(data.kpis);
         renderizarGraficoVentas(data.ventas_sucursales);
+        renderizarGraficoGrupos(data.ventas_grupos, data.kpis?.total_venta);
         renderizarGraficoTendencia(data.tendencia_ventas);
+        renderizarTablaTopVendedores(data.top_vendedores);
         cambiarCriterioTopArticulos(criterioTopArticulosActual);
         renderizarTablaSucursales(data.ventas_sucursales);
 
@@ -234,6 +244,161 @@ function renderizarGraficoVentas(sucursales) {
             }
         }
     });
+}
+
+function renderizarGraficoGrupos(grupos, totalVenta) {
+    const canvas = document.getElementById('chartGruposCanvas');
+    const tbody = document.getElementById('tbodyVentasGrupos');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    if (chartGruposVentas) {
+        chartGruposVentas.destroy();
+        chartGruposVentas = null;
+    }
+
+    const items = grupos || [];
+    const total = items.reduce((acc, g) => acc + (g.total_venta || 0), 0);
+
+    // Mapeo de colores coherente con las políticas de comisión
+    const COLOR_MAP = {
+        'MOSTRADORES': '#dc2626', // Rojo institucional
+        'MAYOREO': '#2563eb',     // Azul
+        'GONHER GO': '#f59e0b',   // Ámbar
+        'SIN POLÍTICA': '#64748b' // Slate
+    };
+    const PALETA_FALLBACK = ['#dc2626', '#2563eb', '#f59e0b', '#10b981', '#8b5cf6', '#64748b'];
+
+    const labels = items.map(g => g.grupo);
+    const datos = items.map(g => g.total_venta);
+    const colores = items.map((g, idx) => {
+        const key = (g.grupo || '').trim().toUpperCase();
+        return COLOR_MAP[key] || PALETA_FALLBACK[idx % PALETA_FALLBACK.length];
+    });
+
+    const ctx = canvas.getContext('2d');
+    chartGruposVentas = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: datos,
+                backgroundColor: colores,
+                borderWidth: 2,
+                borderColor: '#ffffff',
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '68%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 10,
+                        boxHeight: 10,
+                        usePointStyle: true,
+                        font: { size: 10, weight: '700' },
+                        color: '#475569',
+                        padding: 10
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                    titleFont: { size: 11, weight: 'bold' },
+                    bodyFont: { size: 11 },
+                    padding: 8,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: function(context) {
+                            const val = context.parsed;
+                            const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0.0';
+                            return ` ${context.label}: ${formatearMoneda(val)} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Renderizar tabla resumida
+    if (tbody) {
+        if (items.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" class="py-4 text-center text-slate-400 font-medium">No hay ventas registradas</td></tr>`;
+            return;
+        }
+
+        let html = items.map((g, idx) => {
+            const color = colores[idx];
+            return `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="py-1.5 px-2 font-bold text-slate-800 flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${color};"></span>
+                        <span class="truncate">${g.grupo}</span>
+                    </td>
+                    <td class="py-1.5 px-2 text-right font-black text-slate-900 whitespace-nowrap">
+                        ${formatearMoneda(g.total_venta)}
+                    </td>
+                    <td class="py-1.5 px-2 text-right font-bold text-slate-600 whitespace-nowrap">
+                        ${g.porcentaje}%
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        // Fila Total
+        html += `
+            <tr class="bg-slate-50/80 font-black text-slate-900 border-t border-slate-200">
+                <td class="py-1.5 px-2 uppercase text-[10px] text-slate-500">Total</td>
+                <td class="py-1.5 px-2 text-right whitespace-nowrap">${formatearMoneda(total)}</td>
+                <td class="py-1.5 px-2 text-right whitespace-nowrap">100.0%</td>
+            </tr>
+        `;
+        tbody.innerHTML = html;
+    }
+}
+
+function renderizarTablaTopVendedores(vendedores) {
+    const tbody = document.getElementById('tbodyTopVendedores');
+    if (!tbody) return;
+
+    const items = vendedores || [];
+    if (items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" class="py-6 text-center text-slate-400 font-medium">Sin datos de vendedores</td></tr>`;
+        return;
+    }
+
+    const BADGE_COLORS = {
+        'MOSTRADORES': 'bg-rose-50 text-rose-700 border-rose-200',
+        'MAYOREO': 'bg-blue-50 text-blue-700 border-blue-200',
+        'GONHER GO': 'bg-amber-50 text-amber-800 border-amber-200'
+    };
+
+    tbody.innerHTML = items.map((v, idx) => {
+        const key = (v.grupo || '').trim().toUpperCase();
+        const badgeClass = BADGE_COLORS[key] || 'bg-slate-100 text-slate-700 border-slate-200';
+        const cleanName = (v.nombre || '').replace(/^SUC\s+/i, '');
+
+        return `
+            <tr class="hover:bg-slate-50 transition-colors">
+                <td class="py-2 px-2">
+                    <div class="font-bold text-slate-900 text-xs truncate max-w-[150px]" title="${v.nombre}">
+                        ${idx + 1}. ${cleanName}
+                    </div>
+                    <span class="inline-block px-1.5 py-0.2 text-[9px] font-black uppercase rounded border ${badgeClass}">
+                        ${v.grupo}
+                    </span>
+                </td>
+                <td class="py-2 px-2 text-right font-black text-slate-900 whitespace-nowrap">
+                    ${formatearMoneda(v.total_venta)}
+                </td>
+                <td class="py-2 px-2 text-right text-xs font-semibold text-slate-500 whitespace-nowrap">
+                    ${formatearNumero(v.tickets)}
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function renderizarGraficoTendencia(tendencia) {
@@ -554,9 +719,56 @@ function iniciarAutoRefrescoDashboard() {
 // Inicialización de eventos al cargar documento
 document.addEventListener('DOMContentLoaded', () => {
     const selPeriodo = document.getElementById('selectPeriodoDashboard');
+    const boxCustom = document.getElementById('boxFechasPersonalizadasDashboard');
+    const inputIni = document.getElementById('dashFechaInicio');
+    const inputFin = document.getElementById('dashFechaFin');
+    const btnAplicar = document.getElementById('btnAplicarFechasDashboard');
+
+    // Inicializar inputs de fecha con inicio de mes y hoy
+    const hoy = new Date();
+    const hoyStr = hoy.toISOString().split('T')[0];
+    const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    // Ajuste de zona horaria local para formato YYYY-MM-DD
+    const pad = n => String(n).padStart(2, '0');
+    const localHoyStr = `${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-${pad(hoy.getDate())}`;
+    const localIniStr = `${primerDia.getFullYear()}-${pad(primerDia.getMonth() + 1)}-01`;
+
+    if (inputIni && !inputIni.value) inputIni.value = localIniStr;
+    if (inputFin && !inputFin.value) inputFin.value = localHoyStr;
+
     if (selPeriodo) {
         selPeriodo.addEventListener('change', (e) => {
-            cargarDashboard(e.target.value);
+            const val = e.target.value;
+            if (val === 'personalizado') {
+                if (boxCustom) boxCustom.classList.remove('hidden');
+                cargarDashboard('personalizado');
+            } else {
+                if (boxCustom) boxCustom.classList.add('hidden');
+                cargarDashboard(val);
+            }
+        });
+    }
+
+    if (btnAplicar) {
+        btnAplicar.addEventListener('click', () => {
+            if (selPeriodo) selPeriodo.value = 'personalizado';
+            cargarDashboard('personalizado');
+        });
+    }
+
+    if (inputIni) {
+        inputIni.addEventListener('change', () => {
+            if (selPeriodo && selPeriodo.value === 'personalizado') {
+                cargarDashboard('personalizado');
+            }
+        });
+    }
+
+    if (inputFin) {
+        inputFin.addEventListener('change', () => {
+            if (selPeriodo && selPeriodo.value === 'personalizado') {
+                cargarDashboard('personalizado');
+            }
         });
     }
 

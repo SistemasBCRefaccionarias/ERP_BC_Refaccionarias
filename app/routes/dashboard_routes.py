@@ -30,8 +30,17 @@ def get_cached(key, periodo=None):
 def set_cached(key, data):
     _cache_dashboard[key] = (data, datetime.datetime.now())
 
-def resolver_rango_fechas(periodo):
+def resolver_rango_fechas(periodo, fecha_ini_custom=None, fecha_fin_custom=None):
     hoy = datetime.date.today()
+    if periodo == 'personalizado' and fecha_ini_custom and fecha_fin_custom:
+        try:
+            d_ini = datetime.datetime.strptime(fecha_ini_custom, '%Y-%m-%d').date()
+            d_fin = datetime.datetime.strptime(fecha_fin_custom, '%Y-%m-%d').date()
+            if d_ini > d_fin:
+                d_ini, d_fin = d_fin, d_ini
+            return d_ini.strftime("%Y-%m-%d"), d_fin.strftime("%Y-%m-%d")
+        except Exception:
+            pass
     if periodo == 'hoy':
         return hoy.strftime("%Y-%m-%d"), hoy.strftime("%Y-%m-%d")
     elif periodo == 'semana':
@@ -55,11 +64,27 @@ def resolver_rango_fechas(periodo):
 
 MESES_ABR = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
-def obtener_tendencia_ventas(periodo, cur):
+def obtener_tendencia_ventas(periodo, cur, fecha_ini=None, fecha_fin=None):
     hoy = datetime.date.today()
     
-    if periodo == 'hoy':
-        hora_max = max(20, datetime.datetime.now().hour)
+    delta_dias = None
+    d_ini = None
+    d_fin = None
+    if periodo == 'personalizado' and fecha_ini and fecha_fin:
+        try:
+            d_ini = datetime.datetime.strptime(fecha_ini, '%Y-%m-%d').date()
+            d_fin = datetime.datetime.strptime(fecha_fin, '%Y-%m-%d').date()
+            if d_ini > d_fin:
+                d_ini, d_fin = d_fin, d_ini
+                fecha_ini, fecha_fin = d_ini.strftime("%Y-%m-%d"), d_fin.strftime("%Y-%m-%d")
+            delta_dias = (d_fin - d_ini).days
+        except Exception:
+            delta_dias = 0
+            d_ini, d_fin = hoy, hoy
+
+    if periodo == 'hoy' or (periodo == 'personalizado' and delta_dias == 0):
+        target_fecha = fecha_ini if (periodo == 'personalizado' and fecha_ini) else hoy.strftime("%Y-%m-%d")
+        hora_max = max(20, datetime.datetime.now().hour) if target_fecha == hoy.strftime("%Y-%m-%d") else 20
         horas = list(range(8, hora_max + 1))
         etiquetas = [f"{h:02d}:00" for h in horas]
         
@@ -78,7 +103,7 @@ def obtener_tendencia_ventas(periodo, cur):
                 FROM DOCTOS_PV p
                 LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
                 JOIN ALMACENES a ON a.ALMACEN_ID = COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
-                WHERE p.FECHA = CURRENT_DATE
+                WHERE p.FECHA = ?
                   AND p.ESTATUS <> 'C'
                   AND p.TIPO_DOCTO IN ('V', 'D')
 
@@ -91,13 +116,13 @@ def obtener_tendencia_ventas(periodo, cur):
                     CASE WHEN v.TIPO_DOCTO = 'D' THEN -(v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) ELSE (v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) END AS TOTAL
                 FROM DOCTOS_VE v
                 JOIN ALMACENES a ON a.ALMACEN_ID = v.ALMACEN_ID
-                WHERE v.FECHA = CURRENT_DATE
+                WHERE v.FECHA = ?
                   AND v.ESTATUS <> 'C'
                   AND v.APLICADO = 'S'
                   AND v.TIPO_DOCTO IN ('F', 'D')
             )
             GROUP BY HORA, ALMACEN_ID, SUCURSAL
-        """)
+        """, (target_fecha, target_fecha))
         filas = cur.fetchall()
         
         suc_map = {}
@@ -121,71 +146,89 @@ def obtener_tendencia_ventas(periodo, cur):
                 'total': round(s['total'], 2)
             })
             
+        subtitulo = f"Ventas por hora del día {target_fecha}" if periodo == 'personalizado' else "Ventas por hora durante el día de hoy"
         return {
             'tipo': 'horas',
-            'subtitulo': 'Ventas por hora durante el día de hoy',
+            'subtitulo': subtitulo,
             'badge': 'Por Hora',
             'etiquetas': etiquetas,
             'sucursales': datasets
         }
 
-    elif periodo == 'mes_actual':
-        # Mes en curso: agrupado día a día desde el día 1 hasta el día actual
-        f_ini_str, _ = resolver_rango_fechas(periodo)
-        dias = list(range(1, hoy.day + 1))
-        etiquetas = [f"{d:02d} {MESES_ABR[hoy.month]}" for d in dias]
+    elif periodo == 'mes_actual' or (periodo == 'personalizado' and delta_dias is not None and delta_dias <= 31):
+        if periodo == 'personalizado':
+            f_ini_str, f_fin_str = fecha_ini, fecha_fin
+            cur_d = d_ini
+            dias_list = []
+            while cur_d <= d_fin:
+                dias_list.append(cur_d)
+                cur_d += datetime.timedelta(days=1)
+            etiquetas = [f"{d.day:02d} {MESES_ABR[d.month]}" for d in dias_list]
+            subtitulo = f"Ventas diarias del {d_ini.strftime('%d/%m/%Y')} al {d_fin.strftime('%d/%m/%Y')}"
+            sql_where_pv = "p.FECHA >= ? AND p.FECHA <= ?"
+            sql_where_ve = "v.FECHA >= ? AND v.FECHA <= ?"
+            params_sql = (f_ini_str, f_fin_str, f_ini_str, f_fin_str)
+        else:
+            f_ini_str, _ = resolver_rango_fechas(periodo)
+            f_fin_str = hoy.strftime("%Y-%m-%d")
+            dias_list = [datetime.date(hoy.year, hoy.month, d) for d in range(1, hoy.day + 1)]
+            etiquetas = [f"{d.day:02d} {MESES_ABR[hoy.month]}" for d in dias_list]
+            subtitulo = f"Ventas diarias de {MESES_ABR[hoy.month]} (Día 1 al {hoy.day})"
+            sql_where_pv = "p.FECHA >= ? AND p.FECHA <= CURRENT_DATE"
+            sql_where_ve = "v.FECHA >= ? AND v.FECHA <= CURRENT_DATE"
+            params_sql = (f_ini_str, f_ini_str)
 
-        cur.execute("""
+        cur.execute(f"""
             SELECT 
-                DIA,
+                FECHA,
                 ALMACEN_ID,
                 SUCURSAL,
                 SUM(TOTAL) AS TOTAL
             FROM (
                 SELECT 
-                    EXTRACT(DAY FROM p.FECHA) AS DIA,
+                    p.FECHA AS FECHA,
                     COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
                     TRIM(a.NOMBRE) AS SUCURSAL,
                     CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END AS TOTAL
                 FROM DOCTOS_PV p
                 LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
                 JOIN ALMACENES a ON a.ALMACEN_ID = COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
-                WHERE p.FECHA >= ? AND p.FECHA <= CURRENT_DATE
+                WHERE {sql_where_pv}
                   AND p.ESTATUS <> 'C'
                   AND p.TIPO_DOCTO IN ('V', 'D')
 
                 UNION ALL
 
                 SELECT 
-                    EXTRACT(DAY FROM v.FECHA) AS DIA,
+                    v.FECHA AS FECHA,
                     v.ALMACEN_ID AS ALMACEN_ID,
                     TRIM(a.NOMBRE) AS SUCURSAL,
                     CASE WHEN v.TIPO_DOCTO = 'D' THEN -(v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) ELSE (v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) END AS TOTAL
                 FROM DOCTOS_VE v
                 JOIN ALMACENES a ON a.ALMACEN_ID = v.ALMACEN_ID
-                WHERE v.FECHA >= ? AND v.FECHA <= CURRENT_DATE
+                WHERE {sql_where_ve}
                   AND v.ESTATUS <> 'C'
                   AND v.APLICADO = 'S'
                   AND v.TIPO_DOCTO IN ('F', 'D')
             )
-            GROUP BY DIA, ALMACEN_ID, SUCURSAL
-        """, (f_ini_str, f_ini_str))
+            GROUP BY FECHA, ALMACEN_ID, SUCURSAL
+        """, params_sql)
         filas = cur.fetchall()
 
         suc_map = {}
         for r in filas:
-            d = int(r[0] or 0)
+            fec = r[0]
             alm_id = int(r[1])
             nom = r[2].replace('Sucursal ', '')
             tot = float(r[3] or 0)
             if alm_id not in suc_map:
-                suc_map[alm_id] = {'nombre': nom, 'ventas_por_slot': {}, 'total': 0.0}
-            suc_map[alm_id]['ventas_por_slot'][d] = suc_map[alm_id]['ventas_por_slot'].get(d, 0.0) + tot
+                suc_map[alm_id] = {'nombre': nom, 'ventas_por_fecha': {}, 'total': 0.0}
+            suc_map[alm_id]['ventas_por_fecha'][fec] = suc_map[alm_id]['ventas_por_fecha'].get(fec, 0.0) + tot
             suc_map[alm_id]['total'] += tot
 
         datasets = []
         for alm_id, s in sorted(suc_map.items(), key=lambda x: x[1]['total'], reverse=True)[:10]:
-            valores = [round(s['ventas_por_slot'].get(d, 0.0), 2) for d in dias]
+            valores = [round(s['ventas_por_fecha'].get(d, 0.0), 2) for d in dias_list]
             datasets.append({
                 'almacen_id': alm_id,
                 'nombre': s['nombre'],
@@ -195,14 +238,29 @@ def obtener_tendencia_ventas(periodo, cur):
 
         return {
             'tipo': 'dias',
-            'subtitulo': f"Ventas diarias de {MESES_ABR[hoy.month]} (Día 1 al {hoy.day})",
+            'subtitulo': subtitulo,
             'badge': 'Por Día',
             'etiquetas': etiquetas,
             'sucursales': datasets
         }
-        
-    elif periodo in ('anio', '6meses'):
-        if periodo == 'anio':
+
+    elif periodo in ('anio', '6meses') or (periodo == 'personalizado' and delta_dias is not None and delta_dias > 120):
+        if periodo == 'personalizado':
+            f_ini_str, f_fin_str = fecha_ini, fecha_fin
+            meses_list = []
+            curr = d_ini.replace(day=1)
+            while curr <= d_fin:
+                meses_list.append((curr.year, curr.month))
+                if curr.month == 12:
+                    curr = curr.replace(year=curr.year + 1, month=1)
+                else:
+                    curr = curr.replace(month=curr.month + 1)
+            etiquetas = [f"{MESES_ABR[m]} '{str(y)[-2:]}" if len({y_ for y_, _ in meses_list}) > 1 else MESES_ABR[m] for y, m in meses_list]
+            subtitulo = f"Ventas mensuales del {d_ini.strftime('%d/%m/%Y')} al {d_fin.strftime('%d/%m/%Y')}"
+            sql_where_pv = "p.FECHA >= ? AND p.FECHA <= ?"
+            sql_where_ve = "v.FECHA >= ? AND v.FECHA <= ?"
+            params_sql = (f_ini_str, f_fin_str, f_ini_str, f_fin_str)
+        elif periodo == 'anio':
             ini_anio = hoy.year
             mes_ini = 1
             mes_fin = hoy.month
@@ -210,6 +268,9 @@ def obtener_tendencia_ventas(periodo, cur):
             etiquetas = [MESES_ABR[m] for _, m in meses_list]
             f_ini_str = f"{ini_anio}-01-01"
             subtitulo = f"Ventas mensuales de {ini_anio} (Ene - {MESES_ABR[hoy.month]})"
+            sql_where_pv = "p.FECHA >= ? AND p.FECHA <= CURRENT_DATE"
+            sql_where_ve = "v.FECHA >= ? AND v.FECHA <= CURRENT_DATE"
+            params_sql = (f_ini_str, f_ini_str)
         else:
             meses_list = []
             f_ini = hoy - datetime.timedelta(days=183)
@@ -223,8 +284,11 @@ def obtener_tendencia_ventas(periodo, cur):
                     curr = curr.replace(month=curr.month + 1)
             etiquetas = [f"{MESES_ABR[m]}" if y == hoy.year else f"{MESES_ABR[m]} '{str(y)[-2:]}" for y, m in meses_list]
             subtitulo = "Ventas mensuales de los últimos 6 meses"
+            sql_where_pv = "p.FECHA >= ? AND p.FECHA <= CURRENT_DATE"
+            sql_where_ve = "v.FECHA >= ? AND v.FECHA <= CURRENT_DATE"
+            params_sql = (f_ini_str, f_ini_str)
             
-        cur.execute("""
+        cur.execute(f"""
             SELECT 
                 ANIO,
                 MES,
@@ -241,7 +305,7 @@ def obtener_tendencia_ventas(periodo, cur):
                 FROM DOCTOS_PV p
                 LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
                 JOIN ALMACENES a ON a.ALMACEN_ID = COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
-                WHERE p.FECHA >= ? AND p.FECHA <= CURRENT_DATE
+                WHERE {sql_where_pv}
                   AND p.ESTATUS <> 'C'
                   AND p.TIPO_DOCTO IN ('V', 'D')
 
@@ -255,13 +319,13 @@ def obtener_tendencia_ventas(periodo, cur):
                     CASE WHEN v.TIPO_DOCTO = 'D' THEN -(v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) ELSE (v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) END AS TOTAL
                 FROM DOCTOS_VE v
                 JOIN ALMACENES a ON a.ALMACEN_ID = v.ALMACEN_ID
-                WHERE v.FECHA >= ? AND v.FECHA <= CURRENT_DATE
+                WHERE {sql_where_ve}
                   AND v.ESTATUS <> 'C'
                   AND v.APLICADO = 'S'
                   AND v.TIPO_DOCTO IN ('F', 'D')
             )
             GROUP BY ANIO, MES, ALMACEN_ID, SUCURSAL
-        """, (f_ini_str, f_ini_str))
+        """, params_sql)
         filas = cur.fetchall()
         
         suc_map = {}
@@ -295,10 +359,17 @@ def obtener_tendencia_ventas(periodo, cur):
         }
 
     else:
-        # Semanas para cualquier periodo de rango de días (30dias, 90dias, semana)
-        f_ini_str, f_fin_str = resolver_rango_fechas(periodo)
-        f_ini = datetime.datetime.strptime(f_ini_str, '%Y-%m-%d').date()
-        f_fin = datetime.datetime.strptime(f_fin_str, '%Y-%m-%d').date()
+        # Semanas para cualquier periodo de rango de días (30dias, 90dias, semana, personalizado de 31 a 120 días)
+        if periodo == 'personalizado':
+            f_ini_str, f_fin_str = fecha_ini, fecha_fin
+            f_ini = d_ini
+            f_fin = d_fin
+            desc_periodo = f"del {f_ini.strftime('%d/%m/%Y')} al {f_fin.strftime('%d/%m/%Y')}"
+        else:
+            f_ini_str, f_fin_str = resolver_rango_fechas(periodo)
+            f_ini = datetime.datetime.strptime(f_ini_str, '%Y-%m-%d').date()
+            f_fin = datetime.datetime.strptime(f_fin_str, '%Y-%m-%d').date()
+            desc_periodo = f"de los últimos {periodo.replace('dias', ' días')}" if 'dias' in periodo else "de la semana"
         
         intervalos = []
         curr = f_ini
@@ -380,7 +451,6 @@ def obtener_tendencia_ventas(periodo, cur):
                 'total': round(s['total'], 2)
             })
             
-        desc_periodo = f"de los últimos {periodo.replace('dias', ' días')}" if 'dias' in periodo else "de la semana"
         return {
             'tipo': 'semanas',
             'subtitulo': f"Ventas semanales {desc_periodo}",
@@ -392,13 +462,18 @@ def obtener_tendencia_ventas(periodo, cur):
 @dashboard_bp.route('/api/dashboard/resumen', methods=['GET'])
 def get_dashboard_resumen():
     periodo = request.args.get('periodo', 'mes_actual')
+    fecha_inicio = request.args.get('fecha_inicio')
+    fecha_fin = request.args.get('fecha_fin')
     current_dsn = get_current_dsn()
-    cache_key = f"{current_dsn}_resumen_{periodo}"
+    if periodo == 'personalizado' and fecha_inicio and fecha_fin:
+        cache_key = f"{current_dsn}_resumen_custom_{fecha_inicio}_{fecha_fin}"
+    else:
+        cache_key = f"{current_dsn}_resumen_{periodo}"
     cached = get_cached(cache_key, periodo=periodo)
     if cached:
         return jsonify(cached)
 
-    fecha_ini, fecha_fin = resolver_rango_fechas(periodo)
+    fecha_ini, fecha_fin = resolver_rango_fechas(periodo, fecha_inicio, fecha_fin)
 
     conn = None
     try:
@@ -724,7 +799,88 @@ def get_dashboard_resumen():
         else:
             cliente_estrella = {"nombre": "Sin datos", "tickets": 0, "total": 0.0}
 
-        tendencia_ventas = obtener_tendencia_ventas(periodo, cur)
+        tendencia_ventas = obtener_tendencia_ventas(periodo, cur, fecha_ini=fecha_ini, fecha_fin=fecha_fin)
+
+        # 5. Ventas por Grupo de Vendedores y Top Vendedores del período
+        ventas_grupos = []
+        top_vendedores = []
+        try:
+            cur.execute("""
+                SELECT 
+                    v.VENDEDOR_ID,
+                    TRIM(v.NOMBRE) AS NOMBRE,
+                    COALESCE(TRIM(p.NOMBRE), 'SIN POLÍTICA') AS GRUPO,
+                    SUM(sub.TICKETS) AS TICKETS,
+                    SUM(sub.TOTAL_VENTA) AS TOTAL_VENTA
+                FROM (
+                    SELECT 
+                        pv.VENDEDOR_ID,
+                        COUNT(CASE WHEN pv.TIPO_DOCTO = 'V' THEN pv.DOCTO_PV_ID END) AS TICKETS,
+                        SUM(CASE WHEN pv.TIPO_DOCTO = 'D' THEN -(pv.IMPORTE_NETO + COALESCE(pv.TOTAL_IMPUESTOS, 0)) ELSE (pv.IMPORTE_NETO + COALESCE(pv.TOTAL_IMPUESTOS, 0)) END) AS TOTAL_VENTA
+                    FROM DOCTOS_PV pv
+                    WHERE pv.FECHA >= ? AND pv.FECHA <= ?
+                      AND pv.ESTATUS <> 'C'
+                      AND pv.TIPO_DOCTO IN ('V', 'D')
+                    GROUP BY pv.VENDEDOR_ID
+
+                    UNION ALL
+
+                    SELECT 
+                        ve.VENDEDOR_ID,
+                        COUNT(CASE WHEN ve.TIPO_DOCTO = 'F' THEN ve.DOCTO_VE_ID END) AS TICKETS,
+                        SUM(CASE WHEN ve.TIPO_DOCTO = 'D' THEN -(ve.IMPORTE_NETO + COALESCE(ve.TOTAL_IMPUESTOS, 0)) ELSE (ve.IMPORTE_NETO + COALESCE(ve.TOTAL_IMPUESTOS, 0)) END) AS TOTAL_VENTA
+                    FROM DOCTOS_VE ve
+                    WHERE ve.FECHA >= ? AND ve.FECHA <= ?
+                      AND ve.ESTATUS <> 'C'
+                      AND ve.APLICADO = 'S'
+                      AND ve.TIPO_DOCTO IN ('F', 'D')
+                    GROUP BY ve.VENDEDOR_ID
+                ) sub
+                JOIN VENDEDORES v ON sub.VENDEDOR_ID = v.VENDEDOR_ID
+                LEFT JOIN POLITICAS_COMISIONES_VENDEDORES p ON v.POLITICA_COMIS_VEN_ID = p.POLITICA_COMIS_VEN_ID
+                GROUP BY v.VENDEDOR_ID, v.NOMBRE, p.NOMBRE
+                ORDER BY TOTAL_VENTA DESC
+            """, (fecha_ini, fecha_fin, fecha_ini, fecha_fin))
+
+            grupos_dict = {}
+            tot_venta_vendedores = 0.0
+
+            vendedores_rows = cur.fetchall()
+            for r_v in vendedores_rows:
+                v_id = int(r_v[0])
+                v_nom = r_v[1] or f"Vendedor {v_id}"
+                v_grp = (r_v[2] or "SIN POLÍTICA").strip().upper()
+                grp_label = ' '.join(w.capitalize() for w in v_grp.split())
+                tcks = int(r_v[3] or 0)
+                tot = float(r_v[4] or 0.0)
+
+                tot_venta_vendedores += tot
+
+                if grp_label not in grupos_dict:
+                    grupos_dict[grp_label] = {"grupo": grp_label, "total_venta": 0.0, "tickets": 0}
+                grupos_dict[grp_label]["total_venta"] += tot
+                grupos_dict[grp_label]["tickets"] += tcks
+
+                top_vendedores.append({
+                    "vendedor_id": v_id,
+                    "nombre": v_nom,
+                    "grupo": grp_label,
+                    "tickets": tcks,
+                    "total_venta": round(tot, 2)
+                })
+
+            ventas_grupos = list(grupos_dict.values())
+            ventas_grupos.sort(key=lambda x: x["total_venta"], reverse=True)
+            for g in ventas_grupos:
+                g["total_venta"] = round(g["total_venta"], 2)
+                g["porcentaje"] = round((g["total_venta"] / tot_venta_vendedores * 100), 1) if tot_venta_vendedores > 0 else 0.0
+
+            for v in top_vendedores:
+                v["porcentaje"] = round((v["total_venta"] / tot_venta_vendedores * 100), 1) if tot_venta_vendedores > 0 else 0.0
+
+            top_vendedores = top_vendedores[:15]
+        except Exception as e_grp:
+            print("Aviso al calcular ventas por grupo y vendedores:", e_grp)
 
         resultado = {
             "success": True,
@@ -751,7 +907,9 @@ def get_dashboard_resumen():
             "tendencia_ventas": tendencia_ventas,
             "top_articulos": top_articulos_piezas,
             "top_articulos_piezas": top_articulos_piezas,
-            "top_articulos_importe": top_articulos_importe
+            "top_articulos_importe": top_articulos_importe,
+            "ventas_grupos": ventas_grupos,
+            "top_vendedores": top_vendedores
         }
 
         set_cached(cache_key, resultado)
@@ -770,14 +928,19 @@ def get_dashboard_resumen():
 @dashboard_bp.route('/api/dashboard/top-articulos', methods=['GET'])
 def get_top_articulos():
     periodo = request.args.get('periodo', 'mes_actual')
+    fecha_inicio = request.args.get('fecha_inicio')
+    fecha_fin = request.args.get('fecha_fin')
     limit = min(100, max(5, int(request.args.get('limit', 20))))
     current_dsn = get_current_dsn()
-    cache_key = f"{current_dsn}_top_articulos_{periodo}_{limit}"
+    if periodo == 'personalizado' and fecha_inicio and fecha_fin:
+        cache_key = f"{current_dsn}_top_articulos_custom_{fecha_inicio}_{fecha_fin}_{limit}"
+    else:
+        cache_key = f"{current_dsn}_top_articulos_{periodo}_{limit}"
     cached = get_cached(cache_key, periodo=periodo)
     if cached:
         return jsonify(cached)
 
-    fecha_ini, fecha_fin = resolver_rango_fechas(periodo)
+    fecha_ini, fecha_fin = resolver_rango_fechas(periodo, fecha_inicio, fecha_fin)
 
     conn = None
     try:
