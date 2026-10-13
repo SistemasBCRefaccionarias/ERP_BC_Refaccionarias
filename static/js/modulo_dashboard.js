@@ -7,6 +7,7 @@ let chartVentasSucursales = null;
 let chartTendenciaVentas = null;
 let chartGruposVentas = null;
 let dashboardDataCache = null;
+let _dashboardAbortController = null;
 
 function formatearMoneda(val) {
     return new Intl.NumberFormat('es-MX', {
@@ -85,12 +86,24 @@ async function cargarDashboard(periodo = 'mes_actual', esSilencioso = false) {
     const loader = document.getElementById('dashboardLoader');
     const content = document.getElementById('dashboardContent');
     const btnRefrescar = document.getElementById('btnRefrescarDashboard');
+    const btnAplicar = document.getElementById('btnAplicarFechasDashboard');
+
+    // Cancelar petición previa si existía para evitar acumulación de consultas en el servidor
+    if (_dashboardAbortController) {
+        _dashboardAbortController.abort();
+    }
+    _dashboardAbortController = new AbortController();
+    const signal = _dashboardAbortController.signal;
 
     if (!esSilencioso) {
         if (loader) loader.classList.remove('hidden');
         if (content) content.classList.add('opacity-50');
     }
     if (btnRefrescar) btnRefrescar.classList.add('animate-spin');
+    if (btnAplicar) {
+        btnAplicar.disabled = true;
+        btnAplicar.textContent = '⏳ Cargando...';
+    }
 
     try {
         let url = `/api/dashboard/resumen?periodo=${encodeURIComponent(periodo)}`;
@@ -100,7 +113,7 @@ async function cargarDashboard(periodo = 'mes_actual', esSilencioso = false) {
             url += `&fecha_inicio=${encodeURIComponent(fIni)}&fecha_fin=${encodeURIComponent(fFin)}`;
         }
 
-        const res = await fetch(url);
+        const res = await fetch(url, { signal });
         const data = await res.json();
 
         if (!data.success) {
@@ -125,6 +138,10 @@ async function cargarDashboard(periodo = 'mes_actual', esSilencioso = false) {
         }
 
     } catch (err) {
+        if (err.name === 'AbortError') {
+            // Petición reemplazada por otra más reciente
+            return;
+        }
         console.error("Error al cargar dashboard:", err);
         if (!esSilencioso && typeof mostrarAlerta === 'function') {
             mostrarAlerta('danger', `Error al cargar indicadores: ${err.message}`, 4000);
@@ -133,6 +150,10 @@ async function cargarDashboard(periodo = 'mes_actual', esSilencioso = false) {
         if (loader) loader.classList.add('hidden');
         if (content) content.classList.remove('opacity-50');
         if (btnRefrescar) btnRefrescar.classList.remove('animate-spin');
+        if (btnAplicar) {
+            btnAplicar.disabled = false;
+            btnAplicar.textContent = 'Aplicar';
+        }
     }
 }
 
@@ -822,7 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const val = e.target.value;
             if (val === 'personalizado') {
                 if (boxCustom) boxCustom.classList.remove('hidden');
-                cargarDashboard('personalizado');
+                // No se llama automáticamente: el usuario introduce las fechas deseadas y presiona "Aplicar"
             } else {
                 if (boxCustom) boxCustom.classList.add('hidden');
                 cargarDashboard(val);
@@ -837,21 +858,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (inputIni) {
-        inputIni.addEventListener('change', () => {
-            if (selPeriodo && selPeriodo.value === 'personalizado') {
-                cargarDashboard('personalizado');
-            }
-        });
-    }
-
-    if (inputFin) {
-        inputFin.addEventListener('change', () => {
-            if (selPeriodo && selPeriodo.value === 'personalizado') {
-                cargarDashboard('personalizado');
-            }
-        });
-    }
+    // Permitir aplicar con la tecla Enter dentro de cualquiera de los inputs de fecha
+    const aplicarConEnter = (e) => {
+        if (e.key === 'Enter') {
+            if (selPeriodo) selPeriodo.value = 'personalizado';
+            cargarDashboard('personalizado');
+        }
+    };
+    if (inputIni) inputIni.addEventListener('keydown', aplicarConEnter);
+    if (inputFin) inputFin.addEventListener('keydown', aplicarConEnter);
 
     const btnRefrescar = document.getElementById('btnRefrescarDashboard');
     if (btnRefrescar) {

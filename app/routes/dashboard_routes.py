@@ -22,7 +22,7 @@ def limpiar_cache_dashboard():
 def get_cached(key, periodo=None):
     if key in _cache_dashboard:
         data, ts = _cache_dashboard[key]
-        ttl = 600 if periodo in ('anio', '6meses', '90dias') else _cache_ttl
+        ttl = 900 if periodo in ('anio', '6meses', '90dias', 'personalizado') else _cache_ttl
         if (datetime.datetime.now() - ts).total_seconds() < ttl:
             return data
     return None
@@ -596,49 +596,45 @@ def get_dashboard_resumen():
             bonif_ids = {int(r[0]) for r in cur.fetchall() if r[0] is not None}
 
             # 2c. Agrupación rápida de ventas del período por ALMACEN_ID y ARTICULO_ID
+            # Se ejecutan consultas directas para DOCTOS_PV y DOCTOS_VE sin subconsulta UNION ALL,
+            # permitiendo a Firebird usar sus índices directamente sin escribir tablas intermedias a disco.
             cur.execute("""
                 SELECT 
-                    ALMACEN_ID,
-                    ARTICULO_ID,
-                    SUM(PIEZAS) AS PIEZAS,
-                    SUM(VENTA_NETA) AS VENTA_NETA
-                FROM (
-                    SELECT 
-                        COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
-                        d.ARTICULO_ID,
-                        SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(CAST(d.UNIDADES AS DOUBLE PRECISION)) ELSE CAST(d.UNIDADES - COALESCE(d.UNIDADES_DEV, 0) AS DOUBLE PRECISION) END) AS PIEZAS,
-                        SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION)) ELSE CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION) END) AS VENTA_NETA
-                    FROM DOCTOS_PV p
-                    LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
-                    JOIN DOCTOS_PV_DET d ON d.DOCTO_PV_ID = p.DOCTO_PV_ID
-                    WHERE p.FECHA >= ? AND p.FECHA <= ?
-                      AND p.ESTATUS <> 'C'
-                      AND p.TIPO_DOCTO IN ('V', 'D')
-                    GROUP BY COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID), d.ARTICULO_ID
+                    COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
+                    d.ARTICULO_ID,
+                    SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(CAST(d.UNIDADES AS DOUBLE PRECISION)) ELSE CAST(d.UNIDADES - COALESCE(d.UNIDADES_DEV, 0) AS DOUBLE PRECISION) END) AS PIEZAS,
+                    SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION)) ELSE CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION) END) AS VENTA_NETA
+                FROM DOCTOS_PV p
+                LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
+                JOIN DOCTOS_PV_DET d ON d.DOCTO_PV_ID = p.DOCTO_PV_ID
+                WHERE p.FECHA >= ? AND p.FECHA <= ?
+                  AND p.ESTATUS <> 'C'
+                  AND p.TIPO_DOCTO IN ('V', 'D')
+                GROUP BY COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID), d.ARTICULO_ID
+            """, (fecha_ini, fecha_fin))
+            filas_ventas_det = cur.fetchall()
 
-                    UNION ALL
-
-                    SELECT 
-                        v.ALMACEN_ID AS ALMACEN_ID,
-                        d.ARTICULO_ID,
-                        SUM(CASE WHEN v.TIPO_DOCTO = 'D' THEN -(CAST(d.UNIDADES AS DOUBLE PRECISION)) ELSE CAST(d.UNIDADES AS DOUBLE PRECISION) END) AS PIEZAS,
-                        SUM(CASE WHEN v.TIPO_DOCTO = 'D' THEN -(CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION)) ELSE CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION) END) AS VENTA_NETA
-                    FROM DOCTOS_VE v
-                    JOIN DOCTOS_VE_DET d ON d.DOCTO_VE_ID = v.DOCTO_VE_ID
-                    WHERE v.FECHA >= ? AND v.FECHA <= ?
-                      AND v.ESTATUS <> 'C'
-                      AND v.APLICADO = 'S'
-                      AND v.TIPO_DOCTO IN ('F', 'D')
-                    GROUP BY v.ALMACEN_ID, d.ARTICULO_ID
-                )
-                GROUP BY ALMACEN_ID, ARTICULO_ID
-            """, (fecha_ini, fecha_fin, fecha_ini, fecha_fin))
+            cur.execute("""
+                SELECT 
+                    v.ALMACEN_ID AS ALMACEN_ID,
+                    d.ARTICULO_ID,
+                    SUM(CASE WHEN v.TIPO_DOCTO = 'D' THEN -(CAST(d.UNIDADES AS DOUBLE PRECISION)) ELSE CAST(d.UNIDADES AS DOUBLE PRECISION) END) AS PIEZAS,
+                    SUM(CASE WHEN v.TIPO_DOCTO = 'D' THEN -(CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION)) ELSE CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION) END) AS VENTA_NETA
+                FROM DOCTOS_VE v
+                JOIN DOCTOS_VE_DET d ON d.DOCTO_VE_ID = v.DOCTO_VE_ID
+                WHERE v.FECHA >= ? AND v.FECHA <= ?
+                  AND v.ESTATUS <> 'C'
+                  AND v.APLICADO = 'S'
+                  AND v.TIPO_DOCTO IN ('F', 'D')
+                GROUP BY v.ALMACEN_ID, d.ARTICULO_ID
+            """, (fecha_ini, fecha_fin))
+            filas_ventas_det += cur.fetchall()
 
             ventas_por_art_dict = {}
             utilidades_por_sucursal = {}
             v_neta_total = 0.0
 
-            for r in cur.fetchall():
+            for r in filas_ventas_det:
                 alm_id = int(r[0]) if r[0] is not None else None
                 art_id = int(r[1]) if r[1] is not None else None
                 if not art_id or art_id in bonif_ids:
