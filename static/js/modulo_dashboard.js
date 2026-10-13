@@ -679,66 +679,88 @@ function renderizarTablaSucursales(sucursales) {
     const tbody = document.getElementById('tbodyResumenSucursales');
     if (!tbody) return;
 
-    const badgeSuc = document.getElementById('badgeTotalSucursalesResumen');
-    if (badgeSuc && Array.isArray(sucursales)) {
-        badgeSuc.textContent = `${sucursales.length} Sucursales`;
+    try {
+        const lista = Array.isArray(sucursales) ? sucursales.filter(Boolean) : [];
+
+        const badgeSuc = document.getElementById('badgeTotalSucursalesResumen');
+        if (badgeSuc) {
+            badgeSuc.textContent = `${lista.length} Sucursales`;
+        }
+
+        if (lista.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400 font-medium">No se encontraron sucursales activas en este período.</td></tr>`;
+            const badgeProm = document.getElementById('badgeMargenPromedioSucursales');
+            if (badgeProm) badgeProm.textContent = 'Margen Prom: 0.0%';
+            return;
+        }
+
+        // Calcular margen promedio ponderado global de las sucursales
+        let totalVta = 0;
+        let totalUt = 0;
+        lista.forEach(s => {
+            totalVta += Number(s?.total_venta || 0);
+            totalUt += Number(s?.utilidad || 0);
+        });
+
+        const promMargenSuc = totalVta > 0 ? ((totalUt / totalVta) * 100) : 0;
+        const badgePromMargen = document.getElementById('badgeMargenPromedioSucursales');
+        if (badgePromMargen) {
+            badgePromMargen.textContent = `Margen Prom: ${promMargenSuc.toFixed(1)}%`;
+        }
+
+        tbody.innerHTML = lista.map((suc, idx) => {
+            const vta = Number(suc?.total_venta || 0);
+            const ut = Number(suc?.utilidad || 0);
+            const tcks = Number(suc?.tickets || 0);
+            const pctVta = Number(suc?.porcentaje || 0);
+            const margen = typeof suc?.margen_utilidad_pct === 'number' 
+                ? suc.margen_utilidad_pct 
+                : (vta > 0 ? Number(((ut / vta) * 100).toFixed(1)) : 0);
+
+            const colorMargenClass = margen >= 35 
+                ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
+                : (margen >= 25 ? 'text-blue-700 bg-blue-50 border-blue-200' : (margen >= 15 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-rose-700 bg-rose-50 border-rose-200'));
+
+            const widthBarra = Math.min(100, Math.max(0, pctVta * 3));
+            const nombreClean = suc?.nombre || 'Sucursal';
+
+            return `
+                <tr class="hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
+                    <td class="py-2.5 px-3 font-bold text-xs text-slate-800 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full ${idx === 0 ? 'bg-theme-primary ring-theme-soft' : 'bg-slate-300'}"></span>
+                        <span class="truncate max-w-[170px]" title="${nombreClean}">${nombreClean}</span>
+                    </td>
+                    <td class="py-2.5 px-3 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">
+                        ${formatearNumero(tcks)}
+                    </td>
+                    <td class="py-2.5 px-3 text-right text-xs font-black text-slate-900 whitespace-nowrap">
+                        ${formatearMoneda(vta)}
+                    </td>
+                    <td class="py-2.5 px-3 text-right text-xs font-bold text-slate-500 whitespace-nowrap">
+                        ${pctVta.toFixed(1)}%
+                    </td>
+                    <td class="py-2.5 px-3 text-right whitespace-nowrap">
+                        <div class="flex flex-col items-end">
+                            <span class="inline-flex items-center gap-1 font-black text-xs px-2 py-0.5 rounded-full border ${colorMargenClass}">
+                                ${margen.toFixed(1)}%
+                            </span>
+                            ${ut !== 0 ? `<span class="text-[10px] text-slate-400 font-semibold mt-0.5" title="Utilidad bruta">${formatearMoneda(ut)}</span>` : ''}
+                        </div>
+                    </td>
+                    <td class="py-2.5 px-3">
+                        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                            <div class="h-2 rounded-full ${idx === 0 ? 'bg-theme-primary' : 'bg-slate-400'}" style="width: ${widthBarra}%"></div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (err) {
+        console.error("Error al renderizar tabla de sucursales:", err);
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-rose-500 font-bold text-xs">Error al mostrar sucursales: ${err.message}</td></tr>`;
+        }
     }
-
-    if (!sucursales || sucursales.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400 font-medium">No se encontraron sucursales activas.</td></tr>`;
-        return;
-    }
-
-    // Calcular margen promedio ponderado global de las sucursales
-    let totalVta = 0;
-    let totalUt = 0;
-    sucursales.forEach(s => {
-        totalVta += (s.total_venta || 0);
-        totalUt += (s.utilidad || 0);
-    });
-    const promMargenSuc = totalVta > 0 ? (totalUt / totalVta * 100) : 0;
-    const badgePromMargen = document.getElementById('badgeMargenPromedioSucursales');
-    if (badgePromMargen) {
-        badgePromMargen.textContent = `Margen Prom: ${promMargen.toFixed(1)}%`;
-    }
-
-    tbody.innerHTML = sucursales.map((suc, idx) => {
-        const margen = typeof suc.margen_utilidad_pct === 'number' ? suc.margen_utilidad_pct : 0;
-        const colorMargenClass = margen >= 35 
-            ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
-            : (margen >= 25 ? 'text-blue-700 bg-blue-50 border-blue-200' : (margen >= 15 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-rose-700 bg-rose-50 border-rose-200'));
-
-        return `
-            <tr class="hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
-                <td class="py-2.5 px-3 font-bold text-xs text-slate-800 flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full ${idx === 0 ? 'bg-theme-primary ring-theme-soft' : 'bg-slate-300'}"></span>
-                    ${suc.nombre}
-                </td>
-                <td class="py-2.5 px-3 text-right text-xs font-semibold text-slate-600">
-                    ${formatearNumero(suc.tickets)}
-                </td>
-                <td class="py-2.5 px-3 text-right text-xs font-black text-slate-900">
-                    ${formatearMoneda(suc.total_venta)}
-                </td>
-                <td class="py-2.5 px-3 text-right text-xs font-bold text-slate-500">
-                    ${suc.porcentaje}%
-                </td>
-                <td class="py-2.5 px-3 text-right whitespace-nowrap">
-                    <div class="flex flex-col items-end">
-                        <span class="inline-flex items-center gap-1 font-black text-xs px-2 py-0.5 rounded-full border ${colorMargenClass}">
-                            ${margen.toFixed(1)}%
-                        </span>
-                        ${suc.utilidad ? `<span class="text-[10px] text-slate-400 font-semibold mt-0.5" title="Utilidad bruta">${formatearMoneda(suc.utilidad)}</span>` : ''}
-                    </div>
-                </td>
-                <td class="py-2.5 px-3">
-                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                        <div class="h-2 rounded-full ${idx === 0 ? 'bg-theme-primary' : 'bg-slate-400'}" style="width: ${Math.min(100, suc.porcentaje * 3)}%"></div>
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join('');
 }
 
 // Auto-refresco automático configurable para la Pantalla de Inicio / Dashboard

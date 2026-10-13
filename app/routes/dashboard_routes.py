@@ -586,7 +586,16 @@ def get_dashboard_resumen():
             """)
             costos_map = {int(r[0]): float(r[1] or 0.0) for r in cur.fetchall() if r[0] is not None}
 
-            # 2b. Agrupación rápida de ventas del período por ALMACEN_ID y ARTICULO_ID
+            # 2b. Excluir artículos de bonificación y cascos (acumuladores usados y notas de crédito de chatarra)
+            cur.execute("""
+                SELECT ARTICULO_ID 
+                FROM ARTICULOS 
+                WHERE UPPER(NOMBRE) LIKE '%BONIFICAC%' 
+                   OR LINEA_ARTICULO_ID IN (847057, 842886, 150854)
+            """)
+            bonif_ids = {int(r[0]) for r in cur.fetchall() if r[0] is not None}
+
+            # 2c. Agrupación rápida de ventas del período por ALMACEN_ID y ARTICULO_ID
             cur.execute("""
                 SELECT 
                     ALMACEN_ID,
@@ -632,7 +641,7 @@ def get_dashboard_resumen():
             for r in cur.fetchall():
                 alm_id = int(r[0]) if r[0] is not None else None
                 art_id = int(r[1]) if r[1] is not None else None
-                if not art_id:
+                if not art_id or art_id in bonif_ids:
                     continue
                 piezas = float(r[2] or 0.0)
                 importe = float(r[3] or 0.0)
@@ -1049,6 +1058,7 @@ def get_top_articulos():
             ) t
             JOIN ARTICULOS ar ON ar.ARTICULO_ID = t.ARTICULO_ID
             LEFT JOIN CLAVES_ARTICULOS ca ON ca.ARTICULO_ID = ar.ARTICULO_ID AND ca.ROL_CLAVE_ART_ID = 17
+            WHERE (UPPER(ar.NOMBRE) NOT LIKE '%BONIFICAC%' AND ar.LINEA_ARTICULO_ID NOT IN (847057, 842886, 150854))
             GROUP BY ca.CLAVE_ARTICULO, ar.NOMBRE, ar.ARTICULO_ID
             ORDER BY PIEZAS_VENDIDAS DESC
         """, (fecha_ini, fecha_fin, fecha_ini, fecha_fin))
