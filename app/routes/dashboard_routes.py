@@ -1,7 +1,7 @@
 import datetime
 from decimal import Decimal
 from flask import Blueprint, jsonify, request
-from app.db import conectar_db
+from app.db import conectar_db, obtener_visibilidad_dict
 
 from app.config import get_current_dsn
 
@@ -66,15 +66,16 @@ def obtener_tendencia_ventas(periodo, cur):
         cur.execute("""
             SELECT 
                 EXTRACT(HOUR FROM p.HORA) AS HORA,
-                a.ALMACEN_ID,
+                COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
                 TRIM(a.NOMBRE) AS SUCURSAL,
                 SUM(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) AS TOTAL
             FROM DOCTOS_PV p
-            JOIN ALMACENES a ON a.ALMACEN_ID = p.ALMACEN_ID
+            LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
+            JOIN ALMACENES a ON a.ALMACEN_ID = COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
             WHERE p.FECHA = CURRENT_DATE
               AND p.ESTATUS <> 'C'
               AND p.TIPO_DOCTO IN ('V', 'F')
-            GROUP BY EXTRACT(HOUR FROM p.HORA), a.ALMACEN_ID, a.NOMBRE
+            GROUP BY EXTRACT(HOUR FROM p.HORA), COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID), a.NOMBRE
         """)
         filas = cur.fetchall()
         
@@ -116,15 +117,16 @@ def obtener_tendencia_ventas(periodo, cur):
         cur.execute("""
             SELECT 
                 EXTRACT(DAY FROM p.FECHA) AS DIA,
-                a.ALMACEN_ID,
+                COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
                 TRIM(a.NOMBRE) AS SUCURSAL,
                 SUM(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) AS TOTAL
             FROM DOCTOS_PV p
-            JOIN ALMACENES a ON a.ALMACEN_ID = p.ALMACEN_ID
+            LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
+            JOIN ALMACENES a ON a.ALMACEN_ID = COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
             WHERE p.FECHA >= ? AND p.FECHA <= CURRENT_DATE
               AND p.ESTATUS <> 'C'
               AND p.TIPO_DOCTO IN ('V', 'F')
-            GROUP BY EXTRACT(DAY FROM p.FECHA), a.ALMACEN_ID, a.NOMBRE
+            GROUP BY EXTRACT(DAY FROM p.FECHA), COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID), a.NOMBRE
         """, (f_ini_str,))
         filas = cur.fetchall()
 
@@ -184,15 +186,16 @@ def obtener_tendencia_ventas(periodo, cur):
             SELECT 
                 EXTRACT(YEAR FROM p.FECHA) AS ANIO,
                 EXTRACT(MONTH FROM p.FECHA) AS MES,
-                a.ALMACEN_ID,
+                COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
                 TRIM(a.NOMBRE) AS SUCURSAL,
                 SUM(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) AS TOTAL
             FROM DOCTOS_PV p
-            JOIN ALMACENES a ON a.ALMACEN_ID = p.ALMACEN_ID
+            LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
+            JOIN ALMACENES a ON a.ALMACEN_ID = COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
             WHERE p.FECHA >= ? AND p.FECHA <= CURRENT_DATE
               AND p.ESTATUS <> 'C'
               AND p.TIPO_DOCTO IN ('V', 'F')
-            GROUP BY EXTRACT(YEAR FROM p.FECHA), EXTRACT(MONTH FROM p.FECHA), a.ALMACEN_ID, a.NOMBRE
+            GROUP BY EXTRACT(YEAR FROM p.FECHA), EXTRACT(MONTH FROM p.FECHA), COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID), a.NOMBRE
         """, (f_ini_str,))
         filas = cur.fetchall()
         
@@ -254,15 +257,16 @@ def obtener_tendencia_ventas(periodo, cur):
         cur.execute("""
             SELECT 
                 p.FECHA,
-                a.ALMACEN_ID,
+                COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
                 TRIM(a.NOMBRE) AS SUCURSAL,
                 SUM(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) AS TOTAL
             FROM DOCTOS_PV p
-            JOIN ALMACENES a ON a.ALMACEN_ID = p.ALMACEN_ID
+            LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
+            JOIN ALMACENES a ON a.ALMACEN_ID = COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
             WHERE p.FECHA >= ? AND p.FECHA <= ?
               AND p.ESTATUS <> 'C'
               AND p.TIPO_DOCTO IN ('V', 'F')
-            GROUP BY p.FECHA, a.ALMACEN_ID, a.NOMBRE
+            GROUP BY p.FECHA, COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID), a.NOMBRE
         """, (f_ini_str, f_fin_str))
         filas = cur.fetchall()
         
@@ -315,19 +319,22 @@ def get_dashboard_resumen():
         conn = conectar_db()
         cur = conn.cursor()
 
-        # 1. Ventas por sucursal
+        # 1. Ventas por sucursal (unificando con CAJAS para asociar facturas con ALMACEN_ID nulo)
+        visibles_suc_cfg = obtener_visibilidad_dict('SUCURSAL', empresa=current_dsn)
+
         cur.execute("""
             SELECT 
-                a.ALMACEN_ID,
+                COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
                 TRIM(a.NOMBRE) AS NOMBRE,
                 COUNT(p.DOCTO_PV_ID) AS TICKETS,
                 SUM(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) AS TOTAL_VENTA
             FROM DOCTOS_PV p
-            JOIN ALMACENES a ON a.ALMACEN_ID = p.ALMACEN_ID
+            LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
+            JOIN ALMACENES a ON a.ALMACEN_ID = COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
             WHERE p.FECHA >= ? AND p.FECHA <= ?
               AND p.ESTATUS <> 'C'
               AND p.TIPO_DOCTO IN ('V', 'F')
-            GROUP BY a.ALMACEN_ID, a.NOMBRE
+            GROUP BY COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID), a.NOMBRE
             ORDER BY TOTAL_VENTA DESC
         """, (fecha_ini, fecha_fin))
 
@@ -337,13 +344,27 @@ def get_dashboard_resumen():
         sucursal_lider = {"nombre": "Sin datos", "total": 0.0}
 
         for r in cur.fetchall():
+            if r[0] is None:
+                continue
+            alm_id = int(r[0])
+            nom = r[1] or f"Almacén {alm_id}"
+            nom_upper = nom.upper()
             tot = float(r[3] or 0)
             tcks = int(r[2] or 0)
-            nom = r[1]
+
+            # Verificar si la sucursal está visible según configuración o regla por defecto
+            if alm_id in visibles_suc_cfg:
+                visible = visibles_suc_cfg[alm_id]
+            else:
+                visible = not any(x in nom_upper for x in ['NO UTILIZAR', 'NO USAR', 'TRANSITO', 'DEVOLUCION'])
+
+            if not visible:
+                continue
+
             total_venta_grupo += tot
             total_tickets_grupo += tcks
             sucursales_ventas.append({
-                "almacen_id": int(r[0]),
+                "almacen_id": alm_id,
                 "nombre": nom,
                 "tickets": tcks,
                 "total_venta": tot

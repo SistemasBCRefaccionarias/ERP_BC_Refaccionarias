@@ -211,6 +211,18 @@ def get_dashboard_embarques():
     """, params_emp)
     r = cur.fetchone()
 
+    # Desglose exacto de cajas físicas en tránsito, pendientes y entregadas
+    cur.execute(f"""
+        SELECT 
+            COUNT(CASE WHEN c.estatus = 'EN_TRANSITO' THEN 1 END) AS cajas_en_transito,
+            COUNT(CASE WHEN c.estatus = 'RECIBIDA' THEN 1 END) AS cajas_recibidas,
+            COUNT(CASE WHEN c.estatus NOT IN ('EN_TRANSITO', 'RECIBIDA') THEN 1 END) AS cajas_pendientes
+        FROM embarque_cajas c
+        JOIN embarques e ON e.id = c.embarque_id
+        {where_emp}
+    """, params_emp)
+    r_cajas = cur.fetchone() or (0, 0, 0)
+
     # Cajas activas hoy
     hoy_str = datetime.date.today().strftime("%Y-%m-%d")
     cur.execute("""
@@ -228,6 +240,9 @@ def get_dashboard_embarques():
             "total_embarques": int(r[3] or 0),
             "total_cajas": int(r[4] or 0),
             "total_piezas": float(r[5] or 0),
+            "cajas_en_transito": int(r_cajas[0] or 0),
+            "cajas_recibidas": int(r_cajas[1] or 0),
+            "cajas_pendientes": int(r_cajas[2] or 0),
             "cajas_hoy": cajas_hoy
         }
     })
@@ -275,8 +290,47 @@ def listar_embarques():
         LIMIT 200
     """, params)
 
+    filas_raw = cur.fetchall()
+    emb_ids = [r[0] for r in filas_raw]
+    cajas_map = {}
+    if emb_ids:
+        placeholders_emb = ','.join(['?'] * len(emb_ids))
+        cur.execute(f"""
+            SELECT id, embarque_id, folio_caja, numero_caja, piezas_en_caja, estatus,
+                   empacado_por, empacado_en, recolectado_por, recolectado_en,
+                   recibido_por, recibido_en, notas
+            FROM embarque_cajas
+            WHERE embarque_id IN ({placeholders_emb})
+            ORDER BY numero_caja ASC
+        """, emb_ids)
+        for c in cur.fetchall():
+            e_id = c[1]
+            if e_id not in cajas_map:
+                cajas_map[e_id] = []
+            cajas_map[e_id].append({
+                "id": c[0],
+                "embarque_id": c[1],
+                "folio_caja": c[2],
+                "numero_caja": c[3],
+                "piezas_en_caja": float(c[4] or 0),
+                "estatus": c[5],
+                "empacado_por": c[6],
+                "empacado_en": c[7],
+                "recolectado_por": c[8],
+                "recolectado_en": c[9],
+                "recibido_por": c[10],
+                "recibido_en": c[11],
+                "notas": c[12]
+            })
+
     filas = []
-    for r in cur.fetchall():
+    for r in filas_raw:
+        e_id = r[0]
+        cajas_list = cajas_map.get(e_id, [])
+        cajas_transito = sum(1 for c in cajas_list if c["estatus"] == "EN_TRANSITO")
+        cajas_recibidas = sum(1 for c in cajas_list if c["estatus"] == "RECIBIDA")
+        cajas_pendientes = sum(1 for c in cajas_list if c["estatus"] not in ("EN_TRANSITO", "RECIBIDA"))
+
         filas.append({
             "id": r[0],
             "folio": r[1],
@@ -299,7 +353,11 @@ def listar_embarques():
             "recolectado_en": r[17],
             "recibido_por": r[18],
             "recibido_en": r[19],
-            "notas": r[20]
+            "notas": r[20],
+            "cajas": cajas_list,
+            "cajas_en_transito": cajas_transito,
+            "cajas_recibidas": cajas_recibidas,
+            "cajas_pendientes": cajas_pendientes
         })
 
     conn.close()
@@ -681,8 +739,8 @@ def escanear_mensajero():
         SELECT c.id, c.embarque_id, c.folio_caja, c.numero_caja, c.estatus, e.folio, e.almacen_destino_nombre, e.cliente_nombre
         FROM embarque_cajas c
         JOIN embarques e ON e.id = c.embarque_id
-        WHERE UPPER(c.folio_caja) = ?
-    """, (codigo_escaneado,))
+        WHERE UPPER(c.folio_caja) = ? OR (UPPER(e.folio) = ? AND c.numero_caja = 1)
+    """, (codigo_escaneado, codigo_escaneado))
     row = cur.fetchone()
 
     if not row:
@@ -756,8 +814,8 @@ def sucursal_recibir_caja():
                e.folio, e.almacen_destino_id, e.almacen_destino_nombre, e.total_cajas
         FROM embarque_cajas c
         JOIN embarques e ON e.id = c.embarque_id
-        WHERE UPPER(c.folio_caja) = ?
-    """, (codigo_escaneado,))
+        WHERE UPPER(c.folio_caja) = ? OR (UPPER(e.folio) = ? AND c.numero_caja = 1)
+    """, (codigo_escaneado, codigo_escaneado))
     row = cur.fetchone()
 
     if not row:

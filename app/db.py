@@ -168,6 +168,49 @@ def init_sqlite():
     cur.execute("CREATE INDEX IF NOT EXISTS idx_vp_clave ON ventas_perdidas(clave_articulo)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_vp_estatus ON ventas_perdidas(estatus_compras)")
 
+    # Tabla de Configuración de Visibilidad de Sucursales y Vendedores en el Sistema
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS config_visibilidad (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa TEXT NOT NULL DEFAULT 'BC',
+            tipo TEXT NOT NULL,
+            entidad_id INTEGER NOT NULL,
+            nombre TEXT NOT NULL DEFAULT '',
+            visible INTEGER NOT NULL DEFAULT 1,
+            modificado_en TEXT DEFAULT '',
+            UNIQUE(empresa, tipo, entidad_id)
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_cfg_visib ON config_visibilidad(empresa, tipo)")
+
+    conn.commit()
+    conn.close()
+
+def obtener_visibilidad_dict(tipo, empresa='BC'):
+    """Retorna un dict {entidad_id: bool_visible} para el tipo ('SUCURSAL' o 'VENDEDOR')"""
+    conn = conectar_sqlite()
+    cur = conn.cursor()
+    emp = str(empresa or 'BC').strip().upper()
+    emp_key = 'RT' if ('RT' in emp or 'TOMMY' in emp) else 'BC'
+    cur.execute("SELECT entidad_id, visible FROM config_visibilidad WHERE empresa = ? AND tipo = ?", (emp_key, tipo.upper()))
+    res = {row[0]: bool(row[1]) for row in cur.fetchall()}
+    conn.close()
+    return res
+
+def guardar_visibilidad_item(tipo, entidad_id, visible, nombre='', empresa='BC'):
+    conn = conectar_sqlite()
+    cur = conn.cursor()
+    emp = str(empresa or 'BC').strip().upper()
+    emp_key = 'RT' if ('RT' in emp or 'TOMMY' in emp) else 'BC'
+    ahora = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cur.execute("""
+        INSERT INTO config_visibilidad (empresa, tipo, entidad_id, nombre, visible, modificado_en)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(empresa, tipo, entidad_id) DO UPDATE SET
+            visible = excluded.visible,
+            nombre = CASE WHEN excluded.nombre != '' THEN excluded.nombre ELSE config_visibilidad.nombre END,
+            modificado_en = excluded.modificado_en
+    """, (emp_key, tipo.upper(), int(entidad_id), nombre, 1 if visible else 0, ahora))
     conn.commit()
     conn.close()
 

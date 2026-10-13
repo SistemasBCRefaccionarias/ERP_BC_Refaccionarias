@@ -183,7 +183,7 @@ class _RutaEmbarquesScreenState extends State<RutaEmbarquesScreen> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'Entregadas: $recibidas de $total cajas',
+                                        'Entregadas: $recibidas de $total ($enTransito en ruta)',
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,

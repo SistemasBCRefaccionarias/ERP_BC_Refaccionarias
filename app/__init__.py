@@ -23,6 +23,7 @@ from app.routes.cascos_routes import cascos_bp
 from app.routes.embarques_routes import embarques_bp
 from app.routes.nominas_routes import nominas_bp
 from app.routes.facturacion_routes import facturacion_bp
+from app.routes.visibilidad_routes import visibilidad_bp
 
 def _obtener_secret_key():
     env_secret = os.environ.get("FLASK_SECRET_KEY")
@@ -91,6 +92,7 @@ def create_app():
     app.register_blueprint(embarques_bp)
     app.register_blueprint(nominas_bp)
     app.register_blueprint(facturacion_bp)
+    app.register_blueprint(visibilidad_bp)
 
     @app.before_request
     def verificar_seguridad_api():
@@ -110,8 +112,7 @@ def create_app():
                 '/api/logo',
                 '/api/articulos/foto',
                 '/api/facturacion',
-                '/api/embarques/sucursal/recibir',
-                '/api/embarques/escanear-mensajero'
+                '/api/embarques'
             ]
             if request.path not in rutas_publicas and not any(request.path.startswith(r) for r in rutas_prefijo_publico):
                 if 'usuario' not in session:

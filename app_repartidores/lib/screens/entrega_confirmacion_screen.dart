@@ -407,7 +407,6 @@ class _EntregaConfirmacionScreenState extends State<EntregaConfirmacionScreen> {
                       if (_fotoBytes != null)
                         TextButton.icon(
                           onPressed: () => setState(() {
-                            _fotoEvidencia = null;
                             _fotoBytes = null;
                           }),
                           icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.danger),

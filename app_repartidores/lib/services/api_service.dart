@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/embarque.dart';
-import '../models/caja.dart';
 import 'storage_service.dart';
 
 class ApiResult<T> {

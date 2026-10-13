@@ -55,14 +55,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
       int entreg = 0;
 
       for (var e in list) {
-        if (e.estatus == 'EN_TRANSITO') {
-          transito += e.totalCajas;
-        } else if (e.estatus == 'PREPARANDO' || e.estatus == 'SURTIDO') {
-          pend += e.totalCajas;
-        } else if (e.estatus == 'RECIBIDO' || e.estatus == 'ENTREGADO') {
-          entreg += e.totalCajas;
+        if (e.cajas.isNotEmpty) {
+          transito += e.cajas.where((c) => c.estaEnTransito).length;
+          pend += e.cajas.where((c) => !c.estaEnTransito && !c.estaRecibida).length;
+          entreg += e.cajas.where((c) => c.estaRecibida).length;
+        } else {
+          if (e.estatus == 'EN_TRANSITO') {
+            transito += e.totalCajas;
+          } else if (e.estatus == 'PREPARANDO' || e.estatus == 'SURTIDO') {
+            pend += e.totalCajas;
+          } else if (e.estatus == 'RECIBIDO' || e.estatus == 'ENTREGADO') {
+            entreg += e.totalCajas;
+          }
         }
       }
+
+      // Si el servidor provee KPIs consolidados exactos de cajas, usarlos
+      try {
+        final dashRes = await ApiService.obtenerDashboard();
+        if (dashRes.success && dashRes.data != null) {
+          final kpis = dashRes.data!['kpis'] as Map<String, dynamic>?;
+          if (kpis != null) {
+            final cTrans = (kpis['cajas_en_transito'] as num?)?.toInt();
+            final cPend = (kpis['cajas_pendientes'] as num?)?.toInt();
+            final cEntreg = (kpis['cajas_recibidas'] as num?)?.toInt();
+            if (cTrans != null) transito = cTrans;
+            if (cPend != null) pend = cPend;
+            if (cEntreg != null) entreg = cEntreg;
+          }
+        }
+      } catch (_) {}
 
       if (mounted) {
         setState(() {
@@ -169,10 +191,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: RefreshIndicator(
         onRefresh: _cargarDatos,
         color: AppColors.primary,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          child: Column(
+        child: Column(
+          children: [
+            if (_cargando)
+              const LinearProgressIndicator(
+                minHeight: 2.5,
+                backgroundColor: AppColors.card,
+                color: AppColors.primary,
+              ),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Barra de aviso Offline si hay scans pendientes
@@ -313,7 +344,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ),
-    );
+    ],
+  ),
+),
+);
   }
 
   Widget _buildKpiCard({

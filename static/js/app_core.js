@@ -723,6 +723,8 @@
                 irASubTabConfiguracion('modulos');
             } else if (tabId === 'config_comisiones') {
                 irASubTabConfiguracion('comisiones');
+            } else if (tabId === 'config_visibilidad') {
+                irASubTabConfiguracion('visibilidad');
             } else if (tabId === 'modulo1') {
                 // Modulo 1
             } else if (tabId === 'modulo2') {
@@ -871,11 +873,13 @@
             const subEmpresas = document.getElementById('subtabContentConfigEmpresas');
             const subModulos = document.getElementById('subtabContentConfigModulos');
             const subComisiones = document.getElementById('subtabContentConfigComisiones');
+            const subVisibilidad = document.getElementById('subtabContentConfigVisibilidad');
 
             const btnUsuarios = document.getElementById('subtabBtnConfigUsuarios');
             const btnEmpresas = document.getElementById('subtabBtnConfigEmpresas');
             const btnModulos = document.getElementById('subtabBtnConfigModulos');
             const btnComisiones = document.getElementById('subtabBtnConfigComisiones');
+            const btnVisibilidad = document.getElementById('subtabBtnConfigVisibilidad');
 
             const aplicarEstiloTab = (btn, activo, colorActivo = 'bg-purple-700 text-white shadow-sm') => {
                 if (!btn) return;
@@ -890,11 +894,13 @@
             if (subEmpresas) subEmpresas.classList.toggle('hidden', tab !== 'empresas');
             if (subModulos) subModulos.classList.toggle('hidden', tab !== 'modulos');
             if (subComisiones) subComisiones.classList.toggle('hidden', tab !== 'comisiones');
+            if (subVisibilidad) subVisibilidad.classList.toggle('hidden', tab !== 'visibilidad');
 
             aplicarEstiloTab(btnUsuarios, tab === 'usuarios', 'bg-purple-700 text-white shadow-sm');
             aplicarEstiloTab(btnEmpresas, tab === 'empresas', 'bg-blue-600 text-white shadow-sm shadow-blue-600/20');
             aplicarEstiloTab(btnModulos, tab === 'modulos', 'bg-amber-600 text-white shadow-sm shadow-amber-600/20');
             aplicarEstiloTab(btnComisiones, tab === 'comisiones', 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/20');
+            aplicarEstiloTab(btnVisibilidad, tab === 'visibilidad', 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20');
 
             if (tab === 'usuarios') {
                 cargarListaUsuarios();
@@ -906,8 +912,21 @@
                 if (typeof cargarConfigComisionesAdmin === 'function') {
                     cargarConfigComisionesAdmin();
                 }
+            } else if (tab === 'visibilidad') {
+                if (typeof cargarModuloVisibilidad === 'function') {
+                    cargarModuloVisibilidad();
+                }
             }
         }
+
+        function irAConfiguracionVisibilidad(subSeccion = 'sucursales') {
+            activarTab('configuracion');
+            irASubTabConfiguracion('visibilidad');
+            if (typeof cambiarSubSeccionVisibilidad === 'function') {
+                cambiarSubSeccionVisibilidad(subSeccion);
+            }
+        }
+        window.irAConfiguracionVisibilidad = irAConfiguracionVisibilidad;
 
         async function cargarListaUsuarios() {
             try {
