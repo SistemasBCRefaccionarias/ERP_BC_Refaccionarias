@@ -542,30 +542,34 @@ function cambiarCriterioTopArticulos(criterio) {
     criterioTopArticulosActual = criterio;
     const btnPiezas = document.getElementById('btnTopCriterioPiezas');
     const btnImporte = document.getElementById('btnTopCriterioImporte');
+    const btnMargen = document.getElementById('btnTopCriterioMargen');
     const thPiezas = document.getElementById('thTopPiezas');
     const thImporte = document.getElementById('thTopImporte');
+    const thMargen = document.getElementById('thTopMargen');
     const subtitulo = document.getElementById('subtituloTopArticulos');
 
-    if (criterio === 'importe') {
-        if (btnPiezas) {
-            btnPiezas.className = 'px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer text-slate-600 hover:text-slate-900';
+    // Botones de toggle
+    const btnInactivo = 'px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer text-slate-600 hover:text-slate-900';
+    const btnActivo = 'px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer btn-theme-primary text-white shadow-xs';
+    if (btnPiezas) btnPiezas.className = (criterio === 'piezas') ? btnActivo : btnInactivo;
+    if (btnImporte) btnImporte.className = (criterio === 'importe') ? btnActivo : btnInactivo;
+    if (btnMargen) btnMargen.className = (criterio === 'margen') ? btnActivo : btnInactivo;
+
+    // Encabezados de tabla
+    const thInactivo = 'text-slate-500 font-semibold';
+    const thActivo = 'text-slate-900 font-black underline decoration-theme-primary decoration-2 underline-offset-4';
+    if (thPiezas) thPiezas.className = (criterio === 'piezas') ? thActivo : thInactivo;
+    if (thImporte) thImporte.className = (criterio === 'importe') ? thActivo : thInactivo;
+    if (thMargen) thMargen.className = (criterio === 'margen') ? thActivo : thInactivo;
+
+    if (subtitulo) {
+        if (criterio === 'importe') {
+            subtitulo.innerHTML = `Productos con mayor facturación e importe neto en el período <span class="text-slate-400">· Margen prom: <strong id="badgeMargenTopArticulos" class="text-emerald-700 font-black">--%</strong></span>`;
+        } else if (criterio === 'margen') {
+            subtitulo.innerHTML = `Productos con mayor porcentaje de margen y rentabilidad <span class="text-slate-400">· Margen prom: <strong id="badgeMargenTopArticulos" class="text-emerald-700 font-black">--%</strong></span>`;
+        } else {
+            subtitulo.innerHTML = `Productos con mayor rotación y piezas vendidas en el período <span class="text-slate-400">· Margen prom: <strong id="badgeMargenTopArticulos" class="text-emerald-700 font-black">--%</strong></span>`;
         }
-        if (btnImporte) {
-            btnImporte.className = 'px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer btn-theme-primary text-white shadow-xs';
-        }
-        if (thPiezas) thPiezas.className = 'text-slate-500 font-semibold';
-        if (thImporte) thImporte.className = 'text-slate-900 font-black underline decoration-theme-primary decoration-2 underline-offset-4';
-        if (subtitulo) subtitulo.textContent = 'Productos con mayor facturación e importe neto en todo el grupo';
-    } else {
-        if (btnPiezas) {
-            btnPiezas.className = 'px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer btn-theme-primary text-white shadow-xs';
-        }
-        if (btnImporte) {
-            btnImporte.className = 'px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer text-slate-600 hover:text-slate-900';
-        }
-        if (thPiezas) thPiezas.className = 'text-slate-900 font-black underline decoration-theme-primary decoration-2 underline-offset-4';
-        if (thImporte) thImporte.className = 'text-slate-500 font-semibold';
-        if (subtitulo) subtitulo.textContent = 'Productos con mayor rotación y piezas vendidas en todo el grupo';
     }
 
     if (dashboardDataCache) {
@@ -574,13 +578,19 @@ function cambiarCriterioTopArticulos(criterio) {
             if (dashboardDataCache.top_articulos_importe && dashboardDataCache.top_articulos_importe.length > 0) {
                 lista = dashboardDataCache.top_articulos_importe;
             } else {
-                lista = [...(dashboardDataCache.top_articulos || [])].sort((a, b) => b.importe - a.importe);
+                lista = [...(dashboardDataCache.top_articulos || [])].sort((a, b) => (b.importe || 0) - (a.importe || 0));
+            }
+        } else if (criterio === 'margen') {
+            if (dashboardDataCache.top_articulos_margen && dashboardDataCache.top_articulos_margen.length > 0) {
+                lista = dashboardDataCache.top_articulos_margen;
+            } else {
+                lista = [...(dashboardDataCache.top_articulos || [])].sort((a, b) => ((b.margen_utilidad_pct || 0) - (a.margen_utilidad_pct || 0)));
             }
         } else {
             if (dashboardDataCache.top_articulos_piezas && dashboardDataCache.top_articulos_piezas.length > 0) {
                 lista = dashboardDataCache.top_articulos_piezas;
             } else {
-                lista = [...(dashboardDataCache.top_articulos || [])].sort((a, b) => b.piezas - a.piezas);
+                lista = [...(dashboardDataCache.top_articulos || [])].sort((a, b) => (b.piezas || 0) - (a.piezas || 0));
             }
         }
         renderizarTablaTopArticulos(lista.slice(0, limiteTopArticulosActual));
@@ -592,23 +602,46 @@ function renderizarTablaTopArticulos(articulos) {
     if (!tbody) return;
 
     if (!articulos || articulos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400 font-medium">No hay datos de venta en este período.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400 font-medium">No hay datos de venta en este período.</td></tr>`;
         return;
+    }
+
+    // Calcular margen promedio ponderado de los artículos mostrados
+    let totVta = 0;
+    let totUt = 0;
+    articulos.forEach(it => {
+        totVta += (it.importe || 0);
+        totUt += (it.utilidad || 0);
+    });
+    const promMargen = totVta > 0 ? (totUt / totVta * 100) : 0;
+    const badgeMargenTop = document.getElementById('badgeMargenTopArticulos');
+    if (badgeMargenTop) {
+        badgeMargenTop.textContent = `${promMargen.toFixed(1)}%`;
     }
 
     const medallas = ['🥇', '🥈', '🥉'];
     const esPorImporte = (criterioTopArticulosActual === 'importe');
+    const esPorMargen = (criterioTopArticulosActual === 'margen');
 
     tbody.innerHTML = articulos.map((item, idx) => {
         const medalla = idx < 3 ? `<span class="text-base">${medallas[idx]}</span>` : `<span class="text-xs font-bold text-slate-400 w-5 text-center">#${idx + 1}</span>`;
         
-        const piezasHtml = esPorImporte
-            ? `<span class="font-bold text-xs text-slate-600">${formatearNumero(item.piezas)} pzas</span>`
-            : `<span class="inline-flex items-center gap-1 font-black text-xs text-theme-deep bg-theme-light px-2.5 py-0.5 rounded-full border border-theme-soft">${formatearNumero(item.piezas)} pzas</span>`;
+        const piezasHtml = (criterioTopArticulosActual === 'piezas')
+            ? `<span class="inline-flex items-center gap-1 font-black text-xs text-theme-deep bg-theme-light px-2.5 py-0.5 rounded-full border border-theme-soft">${formatearNumero(item.piezas)} pzas</span>`
+            : `<span class="font-bold text-xs text-slate-600">${formatearNumero(item.piezas)} pzas</span>`;
 
         const importeHtml = esPorImporte
             ? `<span class="inline-flex items-center gap-1 font-black text-xs text-theme-deep bg-theme-light px-2.5 py-0.5 rounded-full border border-theme-soft">${formatearMoneda(item.importe)}</span>`
             : `<span class="font-black text-slate-900 text-xs">${formatearMoneda(item.importe)}</span>`;
+
+        const margen = typeof item.margen_utilidad_pct === 'number' ? item.margen_utilidad_pct : 0;
+        const colorMargenClass = margen >= 35 
+            ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
+            : (margen >= 20 ? 'text-blue-700 bg-blue-50 border-blue-200' : (margen >= 10 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-rose-700 bg-rose-50 border-rose-200'));
+
+        const margenBadgeHtml = esPorMargen
+            ? `<span class="inline-flex items-center gap-1 font-black text-xs text-theme-deep bg-theme-light px-2.5 py-0.5 rounded-full border border-theme-soft">${margen.toFixed(1)}%</span>`
+            : `<span class="inline-flex items-center gap-1 font-black text-xs px-2 py-0.5 rounded-full border ${colorMargenClass}">${margen.toFixed(1)}%</span>`;
 
         return `
             <tr class="hover:bg-slate-50/80 transition-colors border-b border-slate-100 last:border-0">
@@ -631,6 +664,12 @@ function renderizarTablaTopArticulos(articulos) {
                 <td class="py-3 px-3 text-right whitespace-nowrap">
                     ${importeHtml}
                 </td>
+                <td class="py-3 px-3 text-right whitespace-nowrap">
+                    <div class="flex flex-col items-end">
+                        ${margenBadgeHtml}
+                        ${item.utilidad ? `<span class="text-[10px] text-slate-400 font-semibold mt-0.5" title="Utilidad Bruta estimada">${formatearMoneda(item.utilidad)}</span>` : ''}
+                    </div>
+                </td>
             </tr>
         `;
     }).join('');
@@ -646,11 +685,29 @@ function renderizarTablaSucursales(sucursales) {
     }
 
     if (!sucursales || sucursales.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400 font-medium">No se encontraron sucursales activas.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400 font-medium">No se encontraron sucursales activas.</td></tr>`;
         return;
     }
 
+    // Calcular margen promedio ponderado global de las sucursales
+    let totalVta = 0;
+    let totalUt = 0;
+    sucursales.forEach(s => {
+        totalVta += (s.total_venta || 0);
+        totalUt += (s.utilidad || 0);
+    });
+    const promMargenSuc = totalVta > 0 ? (totalUt / totalVta * 100) : 0;
+    const badgePromMargen = document.getElementById('badgeMargenPromedioSucursales');
+    if (badgePromMargen) {
+        badgePromMargen.textContent = `Margen Prom: ${promMargen.toFixed(1)}%`;
+    }
+
     tbody.innerHTML = sucursales.map((suc, idx) => {
+        const margen = typeof suc.margen_utilidad_pct === 'number' ? suc.margen_utilidad_pct : 0;
+        const colorMargenClass = margen >= 35 
+            ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
+            : (margen >= 25 ? 'text-blue-700 bg-blue-50 border-blue-200' : (margen >= 15 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-rose-700 bg-rose-50 border-rose-200'));
+
         return `
             <tr class="hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
                 <td class="py-2.5 px-3 font-bold text-xs text-slate-800 flex items-center gap-2">
@@ -665,6 +722,14 @@ function renderizarTablaSucursales(sucursales) {
                 </td>
                 <td class="py-2.5 px-3 text-right text-xs font-bold text-slate-500">
                     ${suc.porcentaje}%
+                </td>
+                <td class="py-2.5 px-3 text-right whitespace-nowrap">
+                    <div class="flex flex-col items-end">
+                        <span class="inline-flex items-center gap-1 font-black text-xs px-2 py-0.5 rounded-full border ${colorMargenClass}">
+                            ${margen.toFixed(1)}%
+                        </span>
+                        ${suc.utilidad ? `<span class="text-[10px] text-slate-400 font-semibold mt-0.5" title="Utilidad bruta">${formatearMoneda(suc.utilidad)}</span>` : ''}
+                    </div>
                 </td>
                 <td class="py-2.5 px-3">
                     <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">

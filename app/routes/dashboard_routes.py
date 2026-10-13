@@ -565,15 +565,14 @@ def get_dashboard_resumen():
             s["porcentaje"] = round((s["total_venta"] / total_venta_grupo * 100), 1) if total_venta_grupo > 0 else 0.0
 
         # 2. Utilidad de Venta (Margen Bruto) y Top Artículos en una sola pasada de alto rendimiento
-        # Optimización: Firebird sufre con JOIN a subconsultas derivadas en CAPAS_COSTOS y JOINs
-        # repetidos de DOCTOS_PV_DET con ARTICULOS/CLAVES en periodos largos (>60s en 'anio').
-        # Separando la consulta de costos (~1.3s), agrupando DOCTOS_PV_DET solo por ARTICULO_ID (~1.8s),
-        # y resolviendo nombres/claves en lote solo para los Top 100 (<0.05s), el tiempo baja de >75s a ~5-7s.
+        # Separando la consulta de costos en CAPAS_COSTOS y agrupando por ALMACEN_ID y ARTICULO_ID,
+        # obtenemos margen por sucursal, margen por artículo y totales del grupo en ~1 segundo.
         utilidad_venta = 0.0
         costo_venta = 0.0
         margen_utilidad_pct = 0.0
         top_articulos_piezas = []
         top_articulos_importe = []
+        top_articulos_margen = []
 
         try:
             # 2a. Costo promedio actual por artículo desde CAPAS_COSTOS
@@ -587,27 +586,31 @@ def get_dashboard_resumen():
             """)
             costos_map = {int(r[0]): float(r[1] or 0.0) for r in cur.fetchall() if r[0] is not None}
 
-            # 2b. Agrupación rápida de ventas del período por ARTICULO_ID
+            # 2b. Agrupación rápida de ventas del período por ALMACEN_ID y ARTICULO_ID
             cur.execute("""
                 SELECT 
+                    ALMACEN_ID,
                     ARTICULO_ID,
                     SUM(PIEZAS) AS PIEZAS,
                     SUM(VENTA_NETA) AS VENTA_NETA
                 FROM (
                     SELECT 
+                        COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
                         d.ARTICULO_ID,
                         SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(CAST(d.UNIDADES AS DOUBLE PRECISION)) ELSE CAST(d.UNIDADES - COALESCE(d.UNIDADES_DEV, 0) AS DOUBLE PRECISION) END) AS PIEZAS,
                         SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION)) ELSE CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION) END) AS VENTA_NETA
                     FROM DOCTOS_PV p
+                    LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
                     JOIN DOCTOS_PV_DET d ON d.DOCTO_PV_ID = p.DOCTO_PV_ID
                     WHERE p.FECHA >= ? AND p.FECHA <= ?
                       AND p.ESTATUS <> 'C'
                       AND p.TIPO_DOCTO IN ('V', 'D')
-                    GROUP BY d.ARTICULO_ID
+                    GROUP BY COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID), d.ARTICULO_ID
 
                     UNION ALL
 
                     SELECT 
+                        v.ALMACEN_ID AS ALMACEN_ID,
                         d.ARTICULO_ID,
                         SUM(CASE WHEN v.TIPO_DOCTO = 'D' THEN -(CAST(d.UNIDADES AS DOUBLE PRECISION)) ELSE CAST(d.UNIDADES AS DOUBLE PRECISION) END) AS PIEZAS,
                         SUM(CASE WHEN v.TIPO_DOCTO = 'D' THEN -(CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION)) ELSE CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION) END) AS VENTA_NETA
@@ -617,38 +620,83 @@ def get_dashboard_resumen():
                       AND v.ESTATUS <> 'C'
                       AND v.APLICADO = 'S'
                       AND v.TIPO_DOCTO IN ('F', 'D')
-                    GROUP BY d.ARTICULO_ID
+                    GROUP BY v.ALMACEN_ID, d.ARTICULO_ID
                 )
-                GROUP BY ARTICULO_ID
+                GROUP BY ALMACEN_ID, ARTICULO_ID
             """, (fecha_ini, fecha_fin, fecha_ini, fecha_fin))
 
-            ventas_por_art = []
+            ventas_por_art_dict = {}
+            utilidades_por_sucursal = {}
             v_neta_total = 0.0
+
             for r in cur.fetchall():
-                art_id = int(r[0]) if r[0] else None
+                alm_id = int(r[0]) if r[0] is not None else None
+                art_id = int(r[1]) if r[1] is not None else None
                 if not art_id:
                     continue
-                piezas = float(r[1] or 0.0)
-                importe = float(r[2] or 0.0)
+                piezas = float(r[2] or 0.0)
+                importe = float(r[3] or 0.0)
                 costo_unit = costos_map.get(art_id, 0.0)
                 costo_tot = piezas * costo_unit
                 costo_venta += costo_tot
                 v_neta_total += importe
-                ventas_por_art.append({
-                    "articulo_id": art_id,
-                    "piezas": piezas,
-                    "importe": importe
-                })
+
+                # Acumular por artículo
+                if art_id not in ventas_por_art_dict:
+                    ventas_por_art_dict[art_id] = {
+                        "articulo_id": art_id,
+                        "piezas": 0.0,
+                        "importe": 0.0,
+                        "costo": 0.0
+                    }
+                ventas_por_art_dict[art_id]["piezas"] += piezas
+                ventas_por_art_dict[art_id]["importe"] += importe
+                ventas_por_art_dict[art_id]["costo"] += costo_tot
+
+                # Acumular por sucursal
+                if alm_id is not None:
+                    if alm_id not in utilidades_por_sucursal:
+                        utilidades_por_sucursal[alm_id] = {"venta": 0.0, "costo": 0.0}
+                    utilidades_por_sucursal[alm_id]["venta"] += importe
+                    utilidades_por_sucursal[alm_id]["costo"] += costo_tot
 
             if v_neta_total > 0:
                 utilidad_venta = v_neta_total - costo_venta
                 margen_utilidad_pct = round((utilidad_venta / v_neta_total * 100), 1)
 
-            # 2c. Top 100 por piezas e importe ordenados en memoria (<0.01s)
+            # Inyectar utilidad y margen a cada sucursal en sucursales_ventas
+            for s in sucursales_ventas:
+                alm_id = s.get("almacen_id")
+                suc_data = utilidades_por_sucursal.get(alm_id, {"venta": 0.0, "costo": 0.0})
+                vta_suc = suc_data["venta"]
+                cst_suc = suc_data["costo"]
+                ut_suc = vta_suc - cst_suc
+                margen_suc = round((ut_suc / vta_suc * 100), 1) if vta_suc > 0 else 0.0
+                s["utilidad"] = round(ut_suc, 2)
+                s["margen_utilidad_pct"] = margen_suc
+
+            # Convertir ventas_por_art_dict a lista calculando margen y utilidad
+            ventas_por_art = []
+            for art_id, art_data in ventas_por_art_dict.items():
+                imp = art_data["importe"]
+                cst = art_data["costo"]
+                ut = imp - cst
+                mrg = round((ut / imp * 100), 1) if imp > 0 else 0.0
+                ventas_por_art.append({
+                    "articulo_id": art_id,
+                    "piezas": art_data["piezas"],
+                    "importe": imp,
+                    "costo": cst,
+                    "utilidad": round(ut, 2),
+                    "margen_utilidad_pct": mrg
+                })
+
+            # 2c. Top por piezas, importe y margen
             top_piezas_raw = sorted(ventas_por_art, key=lambda x: x["piezas"], reverse=True)[:100]
             top_importe_raw = sorted(ventas_por_art, key=lambda x: x["importe"], reverse=True)[:100]
+            top_margen_raw = sorted([x for x in ventas_por_art if x["importe"] >= 50.0], key=lambda x: (x["margen_utilidad_pct"], x["importe"]), reverse=True)[:100]
 
-            art_ids_necesarios = list({x["articulo_id"] for x in (top_piezas_raw + top_importe_raw)})
+            art_ids_necesarios = list({x["articulo_id"] for x in (top_piezas_raw + top_importe_raw + top_margen_raw)})
             info_articulos = {}
 
             if art_ids_necesarios:
@@ -677,7 +725,9 @@ def get_dashboard_resumen():
                     "clave": meta["clave"],
                     "nombre": meta["nombre"],
                     "piezas": x["piezas"],
-                    "importe": x["importe"]
+                    "importe": x["importe"],
+                    "utilidad": x["utilidad"],
+                    "margen_utilidad_pct": x["margen_utilidad_pct"]
                 })
 
             for x in top_importe_raw:
@@ -686,7 +736,20 @@ def get_dashboard_resumen():
                     "clave": meta["clave"],
                     "nombre": meta["nombre"],
                     "piezas": x["piezas"],
-                    "importe": x["importe"]
+                    "importe": x["importe"],
+                    "utilidad": x["utilidad"],
+                    "margen_utilidad_pct": x["margen_utilidad_pct"]
+                })
+
+            for x in top_margen_raw:
+                meta = info_articulos.get(x["articulo_id"], {"clave": "S/C", "nombre": f"Art {x['articulo_id']}"})
+                top_articulos_margen.append({
+                    "clave": meta["clave"],
+                    "nombre": meta["nombre"],
+                    "piezas": x["piezas"],
+                    "importe": x["importe"],
+                    "utilidad": x["utilidad"],
+                    "margen_utilidad_pct": x["margen_utilidad_pct"]
                 })
 
         except Exception as e_util:
@@ -908,6 +971,7 @@ def get_dashboard_resumen():
             "top_articulos": top_articulos_piezas,
             "top_articulos_piezas": top_articulos_piezas,
             "top_articulos_importe": top_articulos_importe,
+            "top_articulos_margen": top_articulos_margen,
             "ventas_grupos": ventas_grupos,
             "top_vendedores": top_vendedores
         }
@@ -952,7 +1016,8 @@ def get_top_articulos():
                 TRIM(ar.NOMBRE) AS NOMBRE,
                 SUM(t.PIEZAS_VENDIDAS) AS PIEZAS_VENDIDAS,
                 SUM(t.IMPORTE_TOTAL) AS IMPORTE_TOTAL,
-                COUNT(DISTINCT t.ALMACEN_ID) AS SUCURSALES_VENDIENDO
+                COUNT(DISTINCT t.ALMACEN_ID) AS SUCURSALES_VENDIENDO,
+                ar.ARTICULO_ID
             FROM (
                 SELECT 
                     d.ARTICULO_ID,
@@ -984,18 +1049,43 @@ def get_top_articulos():
             ) t
             JOIN ARTICULOS ar ON ar.ARTICULO_ID = t.ARTICULO_ID
             LEFT JOIN CLAVES_ARTICULOS ca ON ca.ARTICULO_ID = ar.ARTICULO_ID AND ca.ROL_CLAVE_ART_ID = 17
-            GROUP BY ca.CLAVE_ARTICULO, ar.NOMBRE
+            GROUP BY ca.CLAVE_ARTICULO, ar.NOMBRE, ar.ARTICULO_ID
             ORDER BY PIEZAS_VENDIDAS DESC
         """, (fecha_ini, fecha_fin, fecha_ini, fecha_fin))
 
+        rows_top = cur.fetchall()
+
+        # Obtener costos de capas para los artículos del top
+        art_ids_top = [int(r[5]) for r in rows_top if r[5] is not None]
+        costos_top = {}
+        if art_ids_top:
+            placeholders = ','.join(['?'] * len(art_ids_top))
+            cur.execute(f"""
+                SELECT 
+                    ARTICULO_ID,
+                    CAST(SUM(VALOR_TOTAL) AS DOUBLE PRECISION) / NULLIF(CAST(SUM(EXISTENCIA) AS DOUBLE PRECISION), 0)
+                FROM CAPAS_COSTOS
+                WHERE CAPA_AGOTADA = 'N' AND EXISTENCIA > 0 AND ARTICULO_ID IN ({placeholders})
+                GROUP BY ARTICULO_ID
+            """, art_ids_top)
+            costos_top = {int(rc[0]): float(rc[1] or 0.0) for rc in cur.fetchall() if rc[0] is not None}
+
         items = []
-        for r in cur.fetchall():
+        for r in rows_top:
+            pzas = float(r[2] or 0)
+            imp = float(r[3] or 0)
+            art_id = int(r[5]) if r[5] is not None else 0
+            c_u = costos_top.get(art_id, 0.0)
+            ut = imp - (pzas * c_u)
+            mrg = round((ut / imp * 100), 1) if imp > 0 else 0.0
             items.append({
                 "clave": r[0],
                 "nombre": r[1],
-                "piezas": float(r[2] or 0),
-                "importe": float(r[3] or 0),
-                "sucursales_activas": int(r[4] or 0)
+                "piezas": pzas,
+                "importe": imp,
+                "sucursales_activas": int(r[4] or 0),
+                "utilidad": round(ut, 2),
+                "margen_utilidad_pct": mrg
             })
         data = {"success": True, "items": items, "periodo": periodo}
         set_cached(cache_key, data)

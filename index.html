@@ -673,7 +673,7 @@
                                         <h3 id="tituloTopArticulos" class="text-sm font-black text-slate-900 flex items-center gap-2">
                                             <span>🥇</span> Top 10 Artículos Más Vendidos
                                         </h3>
-                                        <p id="subtituloTopArticulos" class="text-xs text-slate-500 font-medium mt-0.5">Productos con mayor rotación y piezas vendidas en todo el grupo</p>
+                                        <p id="subtituloTopArticulos" class="text-xs text-slate-500 font-medium mt-0.5">Productos con mayor rotación y piezas vendidas en todo el grupo <span class="text-slate-400">· Margen prom: <strong id="badgeMargenTopArticulos" class="text-emerald-700 font-black">--%</strong></span></p>
                                     </div>
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <!-- Selector de Límite: Top 10, Top 15, Top 50, Top 100 -->
@@ -687,13 +687,16 @@
                                             </select>
                                         </div>
 
-                                        <!-- Toggle de Criterio: Mayor Cantidad vs Mayor Importe -->
+                                        <!-- Toggle de Criterio: Mayor Cantidad vs Mayor Importe vs Mayor Margen -->
                                         <div class="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-bold">
                                             <button type="button" id="btnTopCriterioPiezas" onclick="cambiarCriterioTopArticulos('piezas')" class="px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer btn-theme-primary text-white shadow-xs">
                                                 📦 Cantidad
                                             </button>
                                             <button type="button" id="btnTopCriterioImporte" onclick="cambiarCriterioTopArticulos('importe')" class="px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer text-slate-600 hover:text-slate-900">
                                                 💰 Importe
+                                            </button>
+                                            <button type="button" id="btnTopCriterioMargen" onclick="cambiarCriterioTopArticulos('margen')" class="px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer text-slate-600 hover:text-slate-900" title="Ver productos con mayor margen de utilidad">
+                                                📈 % Utilidad
                                             </button>
                                         </div>
                                         <button type="button" onclick="activarTab('resurtidos')" class="text-xs font-bold text-theme-primary hover:opacity-80 hover:underline cursor-pointer whitespace-nowrap">
@@ -714,10 +717,13 @@
                                                 <th class="py-2.5 px-3 text-right cursor-pointer hover:text-slate-700" onclick="cambiarCriterioTopArticulos('importe')" title="Ordenar por importe">
                                                     <span id="thTopImporte">Importe</span>
                                                 </th>
+                                                <th class="py-2.5 px-3 text-right cursor-pointer hover:text-slate-700" onclick="cambiarCriterioTopArticulos('margen')" title="Ordenar por margen de utilidad">
+                                                    <span id="thTopMargen">% Utilidad</span>
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody id="tbodyTopArticulos" class="divide-y divide-slate-100">
-                                            <tr><td colspan="5" class="py-8 text-center text-slate-400">Cargando ranking de productos...</td></tr>
+                                            <tr><td colspan="6" class="py-8 text-center text-slate-400">Cargando ranking de productos...</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -728,9 +734,10 @@
                                 <div class="flex items-center justify-between mb-4">
                                     <div>
                                         <h3 class="text-sm font-black text-slate-900">Aportación por Sucursal</h3>
-                                        <p class="text-xs text-slate-500 font-medium mt-0.5">Porcentaje de venta sobre el total del grupo</p>
+                                        <p class="text-xs text-slate-500 font-medium mt-0.5">Porcentaje de venta y margen de utilidad sobre el total</p>
                                     </div>
                                     <div class="flex items-center gap-2">
+                                        <span id="badgeMargenPromedioSucursales" class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">Margen Prom: --%</span>
                                         <span id="badgeTotalSucursalesResumen" class="text-xs font-bold text-slate-400">Sucursales</span>
                                         <button type="button" onclick="irAConfiguracionVisibilidad('sucursales')" title="Configurar visibilidad de sucursales en sistema" class="px-2 py-1 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition border border-slate-200 hover:border-indigo-200 cursor-pointer text-[11px] font-bold flex items-center gap-1 shadow-2xs">
                                             <span>⚙️ Configurar</span>
@@ -744,12 +751,13 @@
                                                 <th class="py-2.5 px-3">Sucursal</th>
                                                 <th class="py-2.5 px-3 text-right">Tickets</th>
                                                 <th class="py-2.5 px-3 text-right">Total $</th>
-                                                <th class="py-2.5 px-3 text-right">%</th>
+                                                <th class="py-2.5 px-3 text-right" title="Porcentaje de aportación sobre la venta total del grupo">% Vta</th>
+                                                <th class="py-2.5 px-3 text-right" title="Margen promedio de utilidad de la sucursal">% Utilidad</th>
                                                 <th class="py-2.5 px-3 w-20">Avance</th>
                                             </tr>
                                         </thead>
                                         <tbody id="tbodyResumenSucursales">
-                                            <tr><td colspan="5" class="py-8 text-center text-slate-400">Cargando sucursales...</td></tr>
+                                            <tr><td colspan="6" class="py-8 text-center text-slate-400">Cargando sucursales...</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
