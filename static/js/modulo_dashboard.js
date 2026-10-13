@@ -539,34 +539,28 @@ function cambiarLimiteTopArticulos(limite) {
 }
 
 function cambiarCriterioTopArticulos(criterio) {
-    criterioTopArticulosActual = criterio;
+    criterioTopArticulosActual = (criterio === 'importe') ? 'importe' : 'piezas';
     const btnPiezas = document.getElementById('btnTopCriterioPiezas');
     const btnImporte = document.getElementById('btnTopCriterioImporte');
-    const btnMargen = document.getElementById('btnTopCriterioMargen');
     const thPiezas = document.getElementById('thTopPiezas');
     const thImporte = document.getElementById('thTopImporte');
-    const thMargen = document.getElementById('thTopMargen');
     const subtitulo = document.getElementById('subtituloTopArticulos');
 
     // Botones de toggle
     const btnInactivo = 'px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer text-slate-600 hover:text-slate-900';
     const btnActivo = 'px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer btn-theme-primary text-white shadow-xs';
-    if (btnPiezas) btnPiezas.className = (criterio === 'piezas') ? btnActivo : btnInactivo;
-    if (btnImporte) btnImporte.className = (criterio === 'importe') ? btnActivo : btnInactivo;
-    if (btnMargen) btnMargen.className = (criterio === 'margen') ? btnActivo : btnInactivo;
+    if (btnPiezas) btnPiezas.className = (criterioTopArticulosActual === 'piezas') ? btnActivo : btnInactivo;
+    if (btnImporte) btnImporte.className = (criterioTopArticulosActual === 'importe') ? btnActivo : btnInactivo;
 
     // Encabezados de tabla
     const thInactivo = 'text-slate-500 font-semibold';
     const thActivo = 'text-slate-900 font-black underline decoration-theme-primary decoration-2 underline-offset-4';
-    if (thPiezas) thPiezas.className = (criterio === 'piezas') ? thActivo : thInactivo;
-    if (thImporte) thImporte.className = (criterio === 'importe') ? thActivo : thInactivo;
-    if (thMargen) thMargen.className = (criterio === 'margen') ? thActivo : thInactivo;
+    if (thPiezas) thPiezas.className = (criterioTopArticulosActual === 'piezas') ? thActivo : thInactivo;
+    if (thImporte) thImporte.className = (criterioTopArticulosActual === 'importe') ? thActivo : thInactivo;
 
     if (subtitulo) {
-        if (criterio === 'importe') {
+        if (criterioTopArticulosActual === 'importe') {
             subtitulo.innerHTML = `Productos con mayor facturación e importe neto en el período <span class="text-slate-400">· Margen prom: <strong id="badgeMargenTopArticulos" class="text-emerald-700 font-black">--%</strong></span>`;
-        } else if (criterio === 'margen') {
-            subtitulo.innerHTML = `Productos con mayor porcentaje de margen y rentabilidad <span class="text-slate-400">· Margen prom: <strong id="badgeMargenTopArticulos" class="text-emerald-700 font-black">--%</strong></span>`;
         } else {
             subtitulo.innerHTML = `Productos con mayor rotación y piezas vendidas en el período <span class="text-slate-400">· Margen prom: <strong id="badgeMargenTopArticulos" class="text-emerald-700 font-black">--%</strong></span>`;
         }

@@ -687,16 +687,13 @@
                                             </select>
                                         </div>
 
-                                        <!-- Toggle de Criterio: Mayor Cantidad vs Mayor Importe vs Mayor Margen -->
+                                        <!-- Toggle de Criterio: Mayor Cantidad vs Mayor Importe -->
                                         <div class="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-bold">
                                             <button type="button" id="btnTopCriterioPiezas" onclick="cambiarCriterioTopArticulos('piezas')" class="px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer btn-theme-primary text-white shadow-xs">
                                                 📦 Cantidad
                                             </button>
                                             <button type="button" id="btnTopCriterioImporte" onclick="cambiarCriterioTopArticulos('importe')" class="px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer text-slate-600 hover:text-slate-900">
                                                 💰 Importe
-                                            </button>
-                                            <button type="button" id="btnTopCriterioMargen" onclick="cambiarCriterioTopArticulos('margen')" class="px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer text-slate-600 hover:text-slate-900" title="Ver productos con mayor margen de utilidad">
-                                                📈 % Utilidad
                                             </button>
                                         </div>
                                         <button type="button" onclick="activarTab('resurtidos')" class="text-xs font-bold text-theme-primary hover:opacity-80 hover:underline cursor-pointer whitespace-nowrap">
@@ -717,7 +714,7 @@
                                                 <th class="py-2.5 px-3 text-right cursor-pointer hover:text-slate-700" onclick="cambiarCriterioTopArticulos('importe')" title="Ordenar por importe">
                                                     <span id="thTopImporte">Importe</span>
                                                 </th>
-                                                <th class="py-2.5 px-3 text-right cursor-pointer hover:text-slate-700" onclick="cambiarCriterioTopArticulos('margen')" title="Ordenar por margen de utilidad">
+                                                <th class="py-2.5 px-3 text-right" title="Margen de utilidad promedio del artículo">
                                                     <span id="thTopMargen">% Utilidad</span>
                                                 </th>
                                             </tr>
@@ -7196,8 +7193,8 @@
     <!-- SCRIPT DE CONTROL -->
     <!-- SCRIPTS MODULARES -->
     <script src="/static/js/paleta_tema.js?v=20261012_v1"></script>
-    <script src="/static/js/app_core.js?v=20261013_v2"></script>
-    <script src="/static/js/modulo_dashboard.js?v=20261013_v2"></script>
+    <script src="/static/js/app_core.js?v=20261013_v3"></script>
+    <script src="/static/js/modulo_dashboard.js?v=20261013_v3"></script>
     <script src="/static/js/modulo_ventas.js?v=20261012_v1"></script>
     <script src="/static/js/modulo_pv.js?v=20261012_v1"></script>
     <script src="/static/js/modulo_administracion.js?v=20261009_v6"></script>
