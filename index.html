@@ -5053,6 +5053,114 @@
                     </div>
                 </div>
 
+                <!-- ================= MÓDULO CATÁLOGO MAESTRO ================= -->
+                <div id="moduloCatalogoMaestroContent" class="hidden space-y-4">
+                    <!-- Banner Superior -->
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="flex items-center gap-3.5">
+                            <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/20 text-xl font-black">
+                                📋
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h2 class="text-base font-black text-slate-900 uppercase tracking-wide">Catálogo Maestro de Artículos</h2>
+                                    <span id="cmBadgeTotalArticulos" class="text-[10px] bg-indigo-50 text-indigo-700 font-extrabold px-2.5 py-0.5 rounded-full border border-indigo-200">
+                                        Cargando artículos...
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-500 font-medium mt-0.5">Clasificación unificada (Categoría, Línea, Sublínea, Marca), múltiplos, equivalencias y clasificaciones de sucursal</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="abrirModalGestionOpcionesCM('categorias')" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl border border-indigo-200 transition cursor-pointer shadow-2xs">
+                                <span>⚙️</span>
+                                <span>Gestionar Categorías y Marcas</span>
+                            </button>
+                            <button type="button" onclick="cargarArticulosCatalogoMaestro(1)" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 transition cursor-pointer">
+                                <span>🔄</span>
+                                <span>Actualizar</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Barra de Filtros y Búsqueda -->
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+                        <!-- Buscador -->
+                        <div class="relative flex-1">
+                            <input type="text" id="cmInputBusqueda" oninput="onInputBusquedaCM()" placeholder="Buscar por clave o descripción del artículo..." class="w-full text-xs font-semibold px-3 py-2 pl-9 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50">
+                            <span class="absolute left-3 top-2.5 text-slate-400 text-xs">🔍</span>
+                        </div>
+                        <!-- Select Categoría -->
+                        <div class="w-full lg:w-44">
+                            <select id="cmFiltroCategoria" onchange="actualizarFiltroLineasCM(); cargarArticulosCatalogoMaestro(1);" class="w-full text-xs font-bold px-2.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                                <option value="">Todas las categorías</option>
+                            </select>
+                        </div>
+                        <!-- Select Línea -->
+                        <div class="w-full lg:w-44">
+                            <select id="cmFiltroLinea" onchange="actualizarFiltroSublineasCM(); cargarArticulosCatalogoMaestro(1);" class="w-full text-xs font-bold px-2.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                                <option value="">Todas las líneas</option>
+                            </select>
+                        </div>
+                        <!-- Select Sublínea -->
+                        <div class="w-full lg:w-44">
+                            <select id="cmFiltroSublinea" onchange="cargarArticulosCatalogoMaestro(1);" class="w-full text-xs font-bold px-2.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                                <option value="">Todas las sublíneas</option>
+                            </select>
+                        </div>
+                        <!-- Select Marca -->
+                        <div class="w-full lg:w-40">
+                            <select id="cmFiltroMarca" onchange="cargarArticulosCatalogoMaestro(1);" class="w-full text-xs font-bold px-2.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                                <option value="">Todas las marcas</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Artículos -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative">
+                        <div id="cmLoader" class="hidden absolute inset-0 bg-white/70 backdrop-blur-2xs flex items-center justify-center z-10">
+                            <div class="flex items-center gap-2 text-indigo-600 font-bold text-xs bg-white px-4 py-2 rounded-xl shadow border border-slate-200">
+                                <div class="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                                <span>Cargando catálogo...</span>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="text-[11px] font-black uppercase text-slate-400 border-b border-slate-100 bg-slate-50/70">
+                                        <th class="py-2.5 px-3">Clave</th>
+                                        <th class="py-2.5 px-3">Descripción</th>
+                                        <th class="py-2.5 px-3">Marca</th>
+                                        <th class="py-2.5 px-3">Categoría</th>
+                                        <th class="py-2.5 px-3">Línea</th>
+                                        <th class="py-2.5 px-3">Sublínea</th>
+                                        <th class="py-2.5 px-3 text-center" title="Múltiplo de venta/resurtido">Múlt.</th>
+                                        <th class="py-2.5 px-3 text-center">Equivalencia</th>
+                                        <th class="py-2.5 px-3 text-right">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbodyCatalogoMaestro" class="divide-y divide-slate-100">
+                                    <tr><td colspan="9" class="p-8 text-center text-slate-400">Cargando artículos...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Paginador Footer -->
+                        <div class="p-3 bg-slate-50/80 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                            <span id="cmInfoPaginacion" class="text-slate-500 font-medium">Página 1 de 1</span>
+                            <div class="flex items-center gap-2">
+                                <button type="button" id="cmBtnPaginaAnterior" onclick="paginaAnteriorCM()" class="px-3 py-1.5 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none text-slate-700 font-bold rounded-xl border border-slate-200 transition cursor-pointer shadow-2xs">
+                                    &larr; Anterior
+                                </button>
+                                <button type="button" id="cmBtnPaginaSiguiente" onclick="paginaSiguienteCM()" class="px-3 py-1.5 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none text-slate-700 font-bold rounded-xl border border-slate-200 transition cursor-pointer shadow-2xs">
+                                    Siguiente &rarr;
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ================= VISTA PLANTILLA PARA MÓDULOS CREADOS ================= -->
                 <div id="moduloCustomContent" class="hidden space-y-4">
                     <!-- Banner Dinámico del Módulo -->
@@ -7190,6 +7298,275 @@
         </div>
     </div>
 
+    <!-- ================= MODAL EDITAR ARTÍCULO CATÁLOGO MAESTRO ================= -->
+    <div id="modalEditarArticuloCM" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full p-5 sm:p-6 space-y-5 my-auto max-h-[92vh] flex flex-col">
+            <!-- Header Modal -->
+            <div class="flex items-start justify-between pb-3 border-b border-slate-100">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <span id="cmModalArtClave" class="px-2.5 py-0.5 rounded-lg bg-indigo-600 text-white font-mono font-black text-xs uppercase tracking-wide">
+                            --
+                        </span>
+                        <h3 class="text-base font-black text-slate-900">Editar Catálogo Maestro</h3>
+                    </div>
+                    <p id="cmModalArtNombre" class="text-xs font-bold text-slate-700 leading-snug">--</p>
+                </div>
+                <button type="button" onclick="cerrarModalEditarArticuloCM()" class="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-1.5 rounded-xl transition cursor-pointer text-base leading-none">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Body Modal (scrollable) -->
+            <div class="overflow-y-auto space-y-5 pr-1 text-xs">
+                <input type="hidden" id="cmEditArticuloId">
+
+                <!-- Sección 1: Clasificación de Catálogo Maestro -->
+                <div class="p-4 rounded-xl bg-slate-50/80 border border-slate-200 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="font-black text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                            🏷️ Clasificación en Catálogo Maestro
+                        </span>
+                        <button type="button" onclick="abrirModalGestionOpcionesCM('categorias')" class="text-indigo-600 hover:underline text-[11px] font-bold">
+                            + Configurar categorías / marcas
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div>
+                            <label class="block font-bold text-slate-600 mb-1">Categoría</label>
+                            <select id="cmEditCategoria" onchange="onCambioCategoriaEditModal()" class="w-full text-xs font-semibold px-2.5 py-1.5 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="">-- Sin categoría --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-600 mb-1">Línea</label>
+                            <select id="cmEditLinea" onchange="onCambioLineaEditModal()" class="w-full text-xs font-semibold px-2.5 py-1.5 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="">-- Sin línea --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-600 mb-1">Sublínea</label>
+                            <select id="cmEditSublinea" class="w-full text-xs font-semibold px-2.5 py-1.5 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="">-- Sin sublínea --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-600 mb-1">Marca</label>
+                            <select id="cmEditMarca" class="w-full text-xs font-semibold px-2.5 py-1.5 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="">-- Sin marca --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección 2: Múltiplos y Equivalencias -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200">
+                        <label class="block font-bold text-slate-700 mb-1">Múltiplo de Venta / Resurtido</label>
+                        <input type="number" id="cmEditMultiplo" min="1" step="1" class="w-full font-mono font-bold text-xs px-2.5 py-1.5 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="1">
+                        <span class="text-[10px] text-slate-400 mt-1 block">Piezas mínimas a surtir en transferencia</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200">
+                        <label class="block font-bold text-slate-700 mb-1">Múltiplo de Compra</label>
+                        <input type="number" id="cmEditMultiploCompra" min="1" step="1" class="w-full font-mono font-bold text-xs px-2.5 py-1.5 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="1">
+                        <span class="text-[10px] text-slate-400 mt-1 block">Empaque de compra a proveedores</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200">
+                        <label class="block font-bold text-slate-700 mb-1">Clave de Equivalencia</label>
+                        <input type="text" id="cmEditEquivalencia" class="w-full font-mono font-bold text-xs px-2.5 py-1.5 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase" placeholder="Ej. E, WP-CR7165">
+                        <span class="text-[10px] text-slate-400 mt-1 block">Agrupa artículos intercambiables</span>
+                    </div>
+                </div>
+
+                <!-- Sección 3: Clasificaciones Actuales por Sucursal (Emblemas) -->
+                <div class="p-4 rounded-xl bg-gradient-to-br from-indigo-50/30 to-purple-50/30 border border-indigo-100 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="font-black text-indigo-950 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                            🏪 Clasificaciones Actuales por Sucursal (Microsip)
+                        </span>
+                        <span class="text-[10px] text-slate-400">Emblemas oficiales de sucursales</span>
+                    </div>
+                    <div id="cmContenedorClasificacionesSucursales" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                        <!-- Generado dinámicamente con emblemas SA, AE, AG, etc. -->
+                    </div>
+                </div>
+
+                <!-- Sección 4: Códigos Alternos y Artículos Equivalentes -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200 space-y-2">
+                        <span class="font-bold text-slate-700 text-[11px] block">🔢 Claves y Códigos Alternos</span>
+                        <div id="cmContenedorClavesAlternas" class="flex flex-wrap gap-1.5 min-h-[32px] items-center">
+                            <span class="text-xs text-slate-400 italic">Cargando...</span>
+                        </div>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200 space-y-2">
+                        <span class="font-bold text-slate-700 text-[11px] block">🔄 Artículos con Misma Equivalencia</span>
+                        <div id="cmContenedorArticulosEquivalentes" class="space-y-1.5 max-h-32 overflow-y-auto">
+                            <span class="text-xs text-slate-400 italic">Cargando...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección 5: Notas -->
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Notas / Observaciones del Catálogo Maestro</label>
+                    <textarea id="cmEditNotas" rows="2" class="w-full text-xs font-medium px-2.5 py-1.5 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Observaciones adicionales sobre este artículo, compatibilidades, etc."></textarea>
+                </div>
+            </div>
+
+            <!-- Footer Modal -->
+            <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button type="button" onclick="cerrarModalEditarArticuloCM()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer">
+                    Cancelar
+                </button>
+                <button type="button" id="cmBtnGuardarArticulo" onclick="guardarCambiosArticuloCM()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md shadow-indigo-600/20 transition cursor-pointer flex items-center gap-1.5">
+                    <span>💾 Guardar Cambios</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL GESTIÓN DE CATEGORÍAS, LÍNEAS, SUBLÍNEAS Y MARCAS ================= -->
+    <div id="modalGestionOpcionesCM" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-3xl w-full p-5 sm:p-6 space-y-4 my-auto max-h-[92vh] flex flex-col">
+            <!-- Header Modal -->
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                    <h3 class="text-base font-black text-slate-900">Configuración de Clasificaciones del Catálogo</h3>
+                    <p class="text-xs text-slate-500">Alta, modificación y eliminación de Categorías, Líneas, Sublíneas y Marcas</p>
+                </div>
+                <button type="button" onclick="cerrarModalGestionOpcionesCM()" class="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-1.5 rounded-xl transition cursor-pointer text-base leading-none">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Tabs de Navegación -->
+            <div class="flex border-b border-slate-200 gap-1">
+                <button type="button" id="cmTabBtn_categorias" onclick="cambiarTabOpcionesCM('categorias')" class="pb-2 px-3 text-xs font-black border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-1.5 cursor-pointer">
+                    📁 Categorías
+                </button>
+                <button type="button" id="cmTabBtn_lineas" onclick="cambiarTabOpcionesCM('lineas')" class="pb-2 px-3 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-1.5 cursor-pointer">
+                    📂 Líneas
+                </button>
+                <button type="button" id="cmTabBtn_sublineas" onclick="cambiarTabOpcionesCM('sublineas')" class="pb-2 px-3 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-1.5 cursor-pointer">
+                    📑 Sublíneas
+                </button>
+                <button type="button" id="cmTabBtn_marcas" onclick="cambiarTabOpcionesCM('marcas')" class="pb-2 px-3 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-1.5 cursor-pointer">
+                    🏷️ Marcas
+                </button>
+            </div>
+
+            <!-- Body Tabs (Scrollable) -->
+            <div class="overflow-y-auto space-y-4 flex-1 text-xs">
+                <!-- Tab Categorías -->
+                <div id="cmTabSec_categorias" class="space-y-4">
+                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <input type="text" id="cmNuevaCategoriaNombre" placeholder="Nombre de nueva categoría..." class="flex-1 px-3 py-1.5 text-xs font-semibold border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <button type="button" onclick="agregarCategoriaCM()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-xs transition cursor-pointer">
+                            + Agregar Categoría
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 text-[11px] font-black uppercase text-slate-400 border-b border-slate-200">
+                                <tr>
+                                    <th class="py-2 px-3 text-center w-8">#</th>
+                                    <th class="py-2 px-3">Nombre</th>
+                                    <th class="py-2 px-3">Descripción</th>
+                                    <th class="py-2 px-3 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cmTbodyCategorias" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab Líneas -->
+                <div id="cmTabSec_lineas" class="hidden space-y-4">
+                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <input type="text" id="cmNuevaLineaNombre" placeholder="Nombre de nueva línea..." class="flex-1 px-3 py-1.5 text-xs font-semibold border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <select id="cmNuevaLineaCategoriaId" class="w-full sm:w-48 px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="">-- Sin categoría --</option>
+                        </select>
+                        <button type="button" onclick="agregarLineaCM()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-xs transition cursor-pointer">
+                            + Agregar Línea
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 text-[11px] font-black uppercase text-slate-400 border-b border-slate-200">
+                                <tr>
+                                    <th class="py-2 px-3 text-center w-8">#</th>
+                                    <th class="py-2 px-3">Nombre</th>
+                                    <th class="py-2 px-3">Categoría</th>
+                                    <th class="py-2 px-3 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cmTbodyLineas" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab Sublíneas -->
+                <div id="cmTabSec_sublineas" class="hidden space-y-4">
+                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <input type="text" id="cmNuevaSublineaNombre" placeholder="Nombre de nueva sublínea..." class="flex-1 px-3 py-1.5 text-xs font-semibold border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <select id="cmNuevaSublineaLineaId" class="w-full sm:w-48 px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="">-- Sin línea --</option>
+                        </select>
+                        <button type="button" onclick="agregarSublineaCM()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-xs transition cursor-pointer">
+                            + Agregar Sublínea
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 text-[11px] font-black uppercase text-slate-400 border-b border-slate-200">
+                                <tr>
+                                    <th class="py-2 px-3 text-center w-8">#</th>
+                                    <th class="py-2 px-3">Nombre</th>
+                                    <th class="py-2 px-3">Línea</th>
+                                    <th class="py-2 px-3 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cmTbodySublineas" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab Marcas -->
+                <div id="cmTabSec_marcas" class="hidden space-y-4">
+                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <input type="text" id="cmNuevaMarcaNombre" placeholder="Nombre de nueva marca..." class="flex-1 px-3 py-1.5 text-xs font-semibold border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <button type="button" onclick="agregarMarcaCM()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-xs transition cursor-pointer">
+                            + Agregar Marca
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 text-[11px] font-black uppercase text-slate-400 border-b border-slate-200">
+                                <tr>
+                                    <th class="py-2 px-3 text-center w-8">#</th>
+                                    <th class="py-2 px-3">Nombre</th>
+                                    <th class="py-2 px-3">Descripción</th>
+                                    <th class="py-2 px-3 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cmTbodyMarcas" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Modal -->
+            <div class="flex items-center justify-end pt-3 border-t border-slate-100">
+                <button type="button" onclick="cerrarModalGestionOpcionesCM()" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition cursor-pointer">
+                    Listo / Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- SCRIPT DE CONTROL -->
     <!-- SCRIPTS MODULARES -->
     <script src="/static/js/paleta_tema.js?v=20261012_v1"></script>
@@ -7211,5 +7588,6 @@
     <script src="/static/js/modulo_config_comisiones.js?v=20261009_v6"></script>
     <script src="/static/js/modulo_visibilidad.js?v=20261012_v1"></script>
     <script src="/static/js/modulo_cascos.js?v=20261012_v1"></script>
+    <script src="/static/js/modulo_catalogo_maestro.js?v=20261013_v1"></script>
 </body>
 </html>

@@ -118,6 +118,15 @@
         "id": "compras_solicitudes",
         "nombre": "Validar Traspasos PV",
         "visible": true
+      },
+      {
+        "id": "catalogo_maestro",
+        "titulo": "Catálogo Maestro",
+        "icono": "📋",
+        "tipo": "submodulo",
+        "visible": true,
+        "es_custom": true,
+        "descripcion": "Sera un modulo para ir armando un solo catalogo donde lleve  los articulos (TODOS) CATEGORIA, LINEA, SUBLINEA Y MARCA, y tenemos que dar de alta un catalogo de esas opciones en Configuracion, dar de alta, modificar y eliminar (solo de esas opciones) y en el catalogo maestro editar multiplos, claves, codigos y demas ademas de las equivalencias y dentro del  modal de editar poder ver las clasificaciones actualies de cada sucursal de ese articulo por su \"emblema\" es decir SA (es saulo), AE (es aeropuerto)"
       }
     ],
     "tipo": "agrupador",
@@ -149,8 +158,6 @@
     "icono": "⏱️",
     "id": "nominas",
     "nombre": "Nóminas",
-    "tipo": "agrupador",
-    "visible": true,
     "submodulos": [
       {
         "icono": "⏰",
@@ -158,7 +165,9 @@
         "nombre": "Reloj Checador",
         "visible": true
       }
-    ]
+    ],
+    "tipo": "agrupador",
+    "visible": true
   },
   {
     "icono": "⚙️",

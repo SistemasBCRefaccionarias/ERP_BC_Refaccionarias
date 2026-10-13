@@ -497,6 +497,7 @@
         const modConfig = document.getElementById('moduloConfiguracionContent');
         const modBotWhatsapp = document.getElementById('moduloBotWhatsappContent');
         const modCustom = document.getElementById('moduloCustomContent');
+        const modCatalogoMaestro = document.getElementById('moduloCatalogoMaestroContent');
 
         const breadcrumbParent = document.getElementById('breadcrumbParent');
         const breadcrumbParentSep = document.getElementById('breadcrumbParentSep');
@@ -523,6 +524,7 @@
             modulo3: 'Traspasos',
             modulo4: 'Buscador de Artículos',
             compras_solicitudes: 'Validar Traspasos PV',
+            catalogo_maestro: 'Catálogo Maestro',
             sucursales: 'Sucursales',
             sucursales_recepcion: 'Recepción de Embarques',
             nominas: 'Nóminas',
@@ -577,6 +579,7 @@
             { id: 'modulo4', btn: tabBtnM4, mod: mod4, isGroup: false, activeClass: 'text-white bg-indigo-600 shadow-md shadow-indigo-600/20' },
             { id: 'resurtidos', btn: tabBtnResurtidos, mod: modResurtidos, isGroup: false, activeClass: 'text-white bg-amber-600 shadow-md shadow-amber-600/20' },
             { id: 'compras_solicitudes', btn: tabBtnComprasSolicitudes, mod: modComprasSolicitudes, isGroup: false, activeClass: 'text-white bg-amber-600 shadow-md shadow-amber-600/20' },
+            { id: 'catalogo_maestro', btn: null, mod: modCatalogoMaestro, isGroup: false, activeClass: 'text-white bg-indigo-600 shadow-md shadow-indigo-600/20' },
             { id: 'sucursales', btn: tabBtnSuc, mod: modSuc, isGroup: true, activeClass: 'text-white bg-indigo-600 shadow-md shadow-indigo-600/20' },
             { id: 'sucursales_recepcion', btn: tabBtnSucRecepcion, mod: modSuc, isGroup: false, activeClass: 'text-white bg-indigo-600 shadow-md shadow-indigo-600/20' },
             { id: 'nominas', btn: tabBtnNominas, mod: modNominas, isGroup: true, activeClass: 'text-white bg-teal-600 shadow-md shadow-teal-600/20' },
@@ -606,15 +609,30 @@
             abrirAcordeonSubmenu('none');
 
             // Ocultar primero todos los contenedores de módulos principales
-            [modDash, modPV, modVentas, modVendedoresComisiones, modAlm, modComp, mod1, mod2, mod3, mod4, modResurtidos, modComprasSolicitudes, modSuc, modNominas, modAdmin, modConfig, modBotWhatsapp, modCustom].forEach(m => {
+            [modDash, modPV, modVentas, modVendedoresComisiones, modAlm, modComp, mod1, mod2, mod3, mod4, modResurtidos, modComprasSolicitudes, modSuc, modNominas, modAdmin, modConfig, modBotWhatsapp, modCustom, modCatalogoMaestro].forEach(m => {
                 if (m) m.classList.add('hidden');
+            });
+
+            // Quitar clase activa previa de botones de submódulos custom
+            document.querySelectorAll('[id^="sidebarItemCustom_"] button').forEach(b => {
+                b.className = "sidebar-item dropdown-item flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer";
             });
 
             // Resaltar botón activo y mostrar contenedor correspondiente
             let tabConfigEncontrado = false;
             const botonVisto = {};   // Evita sobrescribir el estado cuando 2 IDs comparten el mismo botón
             allTabBtns.forEach(t => {
-                if (!t.btn) return;
+                if (!t.btn) {
+                    if (t.id === tabId) {
+                        tabConfigEncontrado = true;
+                        if (t.mod) t.mod.classList.remove('hidden');
+                        const customBtn = document.querySelector(`#sidebarItemCustom_${tabId} button`);
+                        if (customBtn) {
+                            customBtn.className = "sidebar-item dropdown-item tab-activo flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer";
+                        }
+                    }
+                    return;
+                }
                 if (botonVisto[t.btn.id]) return;
                 botonVisto[t.btn.id] = true;
                 const esAlias = (tabId === 'ventas_pv' && t.id === 'puntoventa') ||
@@ -741,6 +759,10 @@
             } else if (tabId === 'compras_solicitudes') {
                 if (typeof comprasCargarSolicitudesTraspasos === 'function') {
                     comprasCargarSolicitudesTraspasos();
+                }
+            } else if (tabId === 'catalogo_maestro') {
+                if (typeof inicializarModuloCatalogoMaestro === 'function') {
+                    inicializarModuloCatalogoMaestro();
                 }
             } else if (tabId === 'nominas' || tabId === 'nominas_reloj') {
                 inicializarModuloNominas();
@@ -1690,6 +1712,7 @@
                 sucursales_recepcion: 'sidebarItemSucRecepcion',
                 resurtidos: 'sidebarItemResurtidos',
                 compras_solicitudes: 'sidebarItemComprasSolicitudes',
+                catalogo_maestro: 'sidebarItemCustom_catalogo_maestro',
                 modulo1: 'sidebarItemM1',
                 modulo2: 'sidebarItemM2',
                 modulo3: 'sidebarItemM3',

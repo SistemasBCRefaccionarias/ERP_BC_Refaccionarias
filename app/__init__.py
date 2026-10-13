@@ -24,6 +24,7 @@ from app.routes.embarques_routes import embarques_bp
 from app.routes.nominas_routes import nominas_bp
 from app.routes.facturacion_routes import facturacion_bp
 from app.routes.visibilidad_routes import visibilidad_bp
+from app.routes.catalogo_maestro_routes import catalogo_maestro_bp
 
 def _obtener_secret_key():
     env_secret = os.environ.get("FLASK_SECRET_KEY")
@@ -93,6 +94,7 @@ def create_app():
     app.register_blueprint(nominas_bp)
     app.register_blueprint(facturacion_bp)
     app.register_blueprint(visibilidad_bp)
+    app.register_blueprint(catalogo_maestro_bp)
 
     @app.before_request
     def verificar_seguridad_api():
