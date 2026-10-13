@@ -68,13 +68,13 @@ def obtener_tendencia_ventas(periodo, cur):
                 EXTRACT(HOUR FROM p.HORA) AS HORA,
                 COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
                 TRIM(a.NOMBRE) AS SUCURSAL,
-                SUM(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) AS TOTAL
+                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS TOTAL
             FROM DOCTOS_PV p
             LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
             JOIN ALMACENES a ON a.ALMACEN_ID = COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
             WHERE p.FECHA = CURRENT_DATE
               AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F')
+              AND p.TIPO_DOCTO IN ('V', 'F', 'D')
             GROUP BY EXTRACT(HOUR FROM p.HORA), COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID), a.NOMBRE
         """)
         filas = cur.fetchall()
@@ -119,13 +119,13 @@ def obtener_tendencia_ventas(periodo, cur):
                 EXTRACT(DAY FROM p.FECHA) AS DIA,
                 COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
                 TRIM(a.NOMBRE) AS SUCURSAL,
-                SUM(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) AS TOTAL
+                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS TOTAL
             FROM DOCTOS_PV p
             LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
             JOIN ALMACENES a ON a.ALMACEN_ID = COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
             WHERE p.FECHA >= ? AND p.FECHA <= CURRENT_DATE
               AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F')
+              AND p.TIPO_DOCTO IN ('V', 'F', 'D')
             GROUP BY EXTRACT(DAY FROM p.FECHA), COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID), a.NOMBRE
         """, (f_ini_str,))
         filas = cur.fetchall()
@@ -188,13 +188,13 @@ def obtener_tendencia_ventas(periodo, cur):
                 EXTRACT(MONTH FROM p.FECHA) AS MES,
                 COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
                 TRIM(a.NOMBRE) AS SUCURSAL,
-                SUM(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) AS TOTAL
+                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS TOTAL
             FROM DOCTOS_PV p
             LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
             JOIN ALMACENES a ON a.ALMACEN_ID = COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
             WHERE p.FECHA >= ? AND p.FECHA <= CURRENT_DATE
               AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F')
+              AND p.TIPO_DOCTO IN ('V', 'F', 'D')
             GROUP BY EXTRACT(YEAR FROM p.FECHA), EXTRACT(MONTH FROM p.FECHA), COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID), a.NOMBRE
         """, (f_ini_str,))
         filas = cur.fetchall()
@@ -259,13 +259,13 @@ def obtener_tendencia_ventas(periodo, cur):
                 p.FECHA,
                 COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
                 TRIM(a.NOMBRE) AS SUCURSAL,
-                SUM(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) AS TOTAL
+                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS TOTAL
             FROM DOCTOS_PV p
             LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
             JOIN ALMACENES a ON a.ALMACEN_ID = COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
             WHERE p.FECHA >= ? AND p.FECHA <= ?
               AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F')
+              AND p.TIPO_DOCTO IN ('V', 'F', 'D')
             GROUP BY p.FECHA, COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID), a.NOMBRE
         """, (f_ini_str, f_fin_str))
         filas = cur.fetchall()
@@ -326,14 +326,14 @@ def get_dashboard_resumen():
             SELECT 
                 COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
                 TRIM(a.NOMBRE) AS NOMBRE,
-                COUNT(p.DOCTO_PV_ID) AS TICKETS,
-                SUM(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) AS TOTAL_VENTA
+                COUNT(CASE WHEN p.TIPO_DOCTO IN ('V', 'F') THEN p.DOCTO_PV_ID END) AS TICKETS,
+                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS TOTAL_VENTA
             FROM DOCTOS_PV p
             LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
             JOIN ALMACENES a ON a.ALMACEN_ID = COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
             WHERE p.FECHA >= ? AND p.FECHA <= ?
               AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F')
+              AND p.TIPO_DOCTO IN ('V', 'F', 'D')
             GROUP BY COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID), a.NOMBRE
             ORDER BY TOTAL_VENTA DESC
         """, (fecha_ini, fecha_fin))
@@ -407,13 +407,13 @@ def get_dashboard_resumen():
             cur.execute("""
                 SELECT 
                     d.ARTICULO_ID,
-                    SUM(CAST(d.UNIDADES - COALESCE(d.UNIDADES_DEV, 0) AS DOUBLE PRECISION)) AS PIEZAS,
-                    SUM(CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION)) AS VENTA_NETA
+                    SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(CAST(d.UNIDADES AS DOUBLE PRECISION)) ELSE CAST(d.UNIDADES - COALESCE(d.UNIDADES_DEV, 0) AS DOUBLE PRECISION) END) AS PIEZAS,
+                    SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION)) ELSE CAST(d.PRECIO_TOTAL_NETO AS DOUBLE PRECISION) END) AS VENTA_NETA
                 FROM DOCTOS_PV p
                 JOIN DOCTOS_PV_DET d ON d.DOCTO_PV_ID = p.DOCTO_PV_ID
                 WHERE p.FECHA >= ? AND p.FECHA <= ?
                   AND p.ESTATUS <> 'C'
-                  AND p.TIPO_DOCTO IN ('V', 'F')
+                  AND p.TIPO_DOCTO IN ('V', 'F', 'D')
                 GROUP BY d.ARTICULO_ID
             """, (fecha_ini, fecha_fin))
 
@@ -542,13 +542,13 @@ def get_dashboard_resumen():
         cur.execute("""
             SELECT FIRST 1
                 TRIM(c.NOMBRE) AS NOMBRE,
-                COUNT(p.DOCTO_PV_ID) AS TICKETS,
-                SUM(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) AS TOTAL
+                COUNT(CASE WHEN p.TIPO_DOCTO IN ('V', 'F') THEN p.DOCTO_PV_ID END) AS TICKETS,
+                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS TOTAL
             FROM DOCTOS_PV p
             JOIN CLIENTES c ON c.CLIENTE_ID = p.CLIENTE_ID
             WHERE p.FECHA >= ? AND p.FECHA <= ?
               AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F')
+              AND p.TIPO_DOCTO IN ('V', 'F', 'D')
               AND UPPER(c.NOMBRE) NOT LIKE '%MOSTRADOR%'
               AND UPPER(c.NOMBRE) NOT LIKE '%PUBLICO EN GENERAL%'
               AND UPPER(c.NOMBRE) NOT LIKE '%VENTA PUBLICO MAYOREO%'
@@ -631,16 +631,17 @@ def get_top_articulos():
             SELECT FIRST {limit}
                 COALESCE(TRIM(ca.CLAVE_ARTICULO), 'S/C') AS CLAVE,
                 TRIM(ar.NOMBRE) AS NOMBRE,
-                SUM(d.UNIDADES - COALESCE(d.UNIDADES_DEV, 0)) AS PIEZAS_VENDIDAS,
-                SUM(d.PRECIO_TOTAL_NETO) AS IMPORTE_TOTAL,
-                COUNT(DISTINCT p.ALMACEN_ID) AS SUCURSALES_VENDIENDO
+                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(d.UNIDADES) ELSE (d.UNIDADES - COALESCE(d.UNIDADES_DEV, 0)) END) AS PIEZAS_VENDIDAS,
+                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(d.PRECIO_TOTAL_NETO) ELSE d.PRECIO_TOTAL_NETO END) AS IMPORTE_TOTAL,
+                COUNT(DISTINCT COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)) AS SUCURSALES_VENDIENDO
             FROM DOCTOS_PV p
+            LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
             JOIN DOCTOS_PV_DET d ON d.DOCTO_PV_ID = p.DOCTO_PV_ID
             JOIN ARTICULOS ar ON ar.ARTICULO_ID = d.ARTICULO_ID
             LEFT JOIN CLAVES_ARTICULOS ca ON ca.ARTICULO_ID = ar.ARTICULO_ID AND ca.ROL_CLAVE_ART_ID = 17
             WHERE p.FECHA >= ? AND p.FECHA <= ?
               AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F')
+              AND p.TIPO_DOCTO IN ('V', 'F', 'D')
             GROUP BY ca.CLAVE_ARTICULO, ar.NOMBRE
             ORDER BY PIEZAS_VENDIDAS DESC
         """, (fecha_ini, fecha_fin))

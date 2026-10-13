@@ -36,13 +36,15 @@ def obtener_metricas_sucursales(sucursal_ids=None, refresh=False):
 
         # 1. Venta de Hoy por Almacen en DOCTOS_PV
         cur.execute("""
-            SELECT p.ALMACEN_ID, SUM(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) AS VENTA_HOY
+            SELECT 
+                COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
+                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS VENTA_HOY
             FROM DOCTOS_PV p
+            LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
             WHERE p.FECHA = CURRENT_DATE
               AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F')
-              AND p.ALMACEN_ID IS NOT NULL
-            GROUP BY p.ALMACEN_ID
+              AND p.TIPO_DOCTO IN ('V', 'F', 'D')
+            GROUP BY COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
         """)
         ventas_hoy = {}
         for r in cur.fetchall():
@@ -51,13 +53,16 @@ def obtener_metricas_sucursales(sucursal_ids=None, refresh=False):
 
         # 2. Venta Promedio Diaria (Últimos 30 días, días con venta activa)
         cur.execute("""
-            SELECT p.ALMACEN_ID, COUNT(DISTINCT p.FECHA) AS DIAS_ACTIVOS, SUM(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) AS TOTAL_VENTA
+            SELECT 
+                COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
+                COUNT(DISTINCT p.FECHA) AS DIAS_ACTIVOS,
+                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS TOTAL_VENTA
             FROM DOCTOS_PV p
+            LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
             WHERE p.FECHA >= CURRENT_DATE - 30
               AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F')
-              AND p.ALMACEN_ID IS NOT NULL
-            GROUP BY p.ALMACEN_ID
+              AND p.TIPO_DOCTO IN ('V', 'F', 'D')
+            GROUP BY COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
         """)
         ventas_promedio = {}
         dias_activos = {}
