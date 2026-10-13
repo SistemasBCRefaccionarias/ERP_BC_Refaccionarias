@@ -208,7 +208,7 @@ def obtener_catalogos_resurtidos():
 
     hoy = datetime.date.today()
     meses_ant = 6
-    dias_atras = 4 # Por defecto 4 días antes como el corte de resurtidos habitual
+    dias_atras = 1 # Por defecto 1 día atrás (ayer) como corte de venta reciente en el sistema
     fecha_ini = hoy - datetime.timedelta(days=183)
     fecha_dias_antes = hoy - datetime.timedelta(days=dias_atras)
 
@@ -222,7 +222,7 @@ def obtener_catalogos_resurtidos():
         "meses_ant": meses_ant,
         "vta_dias_atras": dias_atras,
         "dias_inventario": 15,
-        "periodo_resurtido_dias": 1
+        "periodo_resurtido_dias": 4
     }
 
 def obtener_multiplos_sqlite():
@@ -287,12 +287,12 @@ def calcular_planeacion_resurtidos(params):
     dias_inv = max(1, int(params.get('dias_inventario', 15)))
     meses_ant = max(1, int(params.get('meses_ant', 6)))
     reservar_minimo_cedis = bool(params.get('reservar_minimo_cedis', True))
-    modo_clasificacion = str(params.get('modo_clasificacion', 'dinamica')).lower().strip() # 'dinamica' o 'catalogo'
+    modo_clasificacion = str(params.get('modo_clasificacion', 'catalogo')).lower().strip() # 'catalogo' por defecto (como sistema anterior) o 'dinamica'
     respetar_multiplos = bool(params.get('respetar_multiplos', True))
     
-    raw_clasifs = params.get('clasificaciones_incluir', ['A', 'B', 'C'])
+    raw_clasifs = params.get('clasificaciones_incluir', ['A', 'B'])
     if not isinstance(raw_clasifs, (list, set, tuple)):
-        raw_clasifs = ['A', 'B', 'C']
+        raw_clasifs = ['A', 'B']
     selected_clasifs = {str(c).upper().strip() for c in raw_clasifs if str(c).strip()}
 
     excluidos_db, sin_filtrar_db = obtener_grupos_config_sqlite()
@@ -612,20 +612,21 @@ def calcular_planeacion_resurtidos(params):
         eq = row['equivalencia']
         return row['is_sf'] or not eq or equiv_counts[eq] == 1
 
-    # Regla 1: Mínimo por clasificación en ceros (solo si CEDIS tiene >= 2)
-    for r in filas:
-        if can_process_equiv(r) and r['clasif_almacen'] in selected_clasifs:
-            if r['surtir_cedis'] == 0 and r['stock_almacen'] == 0 and r['stock_cedis'] >= 2:
-                sug = 2 if r['es_par'] == 'S' else 1
-                disp = max(0, r['stock_cedis'] - 1) if reservar_minimo_cedis else r['stock_cedis']
-                r['surtir_cedis'] = min(sug, disp)
-
-    # Regla 2: Limpiar artículos cuyas clasificaciones no estén seleccionadas
+    # Regla 1: Limpiar artículos cuyas clasificaciones no estén seleccionadas para artículos individuales
     for r in filas:
         if can_process_equiv(r) and r['clasif_almacen'] not in selected_clasifs:
             r['surtir_cedis'] = 0
 
-    # Regla 3: Grupos de equivalencias
+    # Regla 2: Límite por necesidad real (faltante) y reserva CEDIS para artículos individuales
+    for r in filas:
+        if can_process_equiv(r) and not r['is_sf']:
+            faltante = max(0, r['promedio_inv'] - r['stock_almacen'])
+            disp = max(0, r['stock_cedis'] - 1) if reservar_minimo_cedis else r['stock_cedis']
+            max_surtir = min(faltante, disp)
+            if r['surtir_cedis'] > max_surtir:
+                r['surtir_cedis'] = max_surtir
+
+    # Regla 3: Grupos de equivalencias (anulación si la sucursal ya tiene stock, y selección de candidato único AS)
     groups = defaultdict(list)
     for r in filas:
         if not r['is_sf'] and r['equivalencia']:
@@ -636,26 +637,38 @@ def calcular_planeacion_resurtidos(params):
     for eq, rows_grp in groups.items():
         if len(rows_grp) <= 1:
             continue
-        eligible = [r for r in rows_grp if r['clasif_almacen'] in selected_clasifs]
         for r in rows_grp:
             r['surtir_cedis'] = 0
-        if not eligible:
+            r['badge_as'] = False
+
+        # Si CUALQUIER artículo del grupo ya tiene inventario en la sucursal destino,
+        # NO se surte ninguno del grupo (regla enforceResurtidosEquivalentDestinationInventoryRule)
+        if any(r['stock_almacen'] > 0 for r in rows_grp):
             continue
-        if any(r["stock_almacen"] > 0 for r in eligible):
+
+        # Debe haber al menos un artículo del grupo con clasificación seleccionada
+        if not any(r['clasif_almacen'] in selected_clasifs for r in rows_grp):
             continue
-        # Candidatos deben tener existencia >= 2 en CEDIS
-        candidates = [r for r in eligible if r['stock_cedis'] >= 2]
+
+        # Candidatos en CEDIS (stock >= 2)
+        candidates = [r for r in rows_grp if not r['is_sf'] and r['stock_cedis'] >= 2]
         if not candidates:
             continue
-        candidates.sort(key=lambda x: (clasif_order.get(x["clasif_almacen"], 99), -x["stock_cedis"], -x["venta_piezas"]))
-        sel = candidates[0]
-        if sel["stock_cedis"] < 2:
-            continue
-        sel["badge_as"] = True
-        disp = max(1, sel["stock_cedis"] - 1 if reservar_minimo_cedis else sel["stock_cedis"])
-        sel["surtir_cedis"] = min(1, disp)
 
-    # Regla 8: Sugerencia por clasificación para líneas maestras sin filtrar (SF) (solo si CEDIS tiene >= 2)
+        # Ordenar por mayor existencia en CEDIS, luego mejor clasificación
+        candidates.sort(key=lambda x: (-x['stock_cedis'], clasif_order.get(x['clasif_almacen'], 99)))
+        sel = candidates[0]
+        sel['badge_as'] = True
+
+        mult = max(1, sel['multiplo'])
+        is_par = sel['es_par'] == 'S'
+        pack = mult * 2 if is_par and mult % 2 != 0 else mult
+        req = max(pack, sel['promedio_inv'] - sel['stock_almacen'])
+        req_final = math.ceil(req / pack) * pack
+        avail = max(0, sel['stock_cedis'] - 1 if reservar_minimo_cedis else sel['stock_cedis'])
+        sel['surtir_cedis'] = min(req_final, avail)
+
+    # Regla 4: Sugerencia por clasificación para líneas maestras sin filtrar (SF) (solo si CEDIS tiene >= 2)
     for r in filas:
         if not r['is_sf'] or r['clasif_almacen'] not in selected_clasifs:
             continue

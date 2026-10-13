@@ -120,15 +120,22 @@ function recalcularFechasResurtido() {
     const [y, m, d] = fFinStr.split('-').map(Number);
     const dFin = new Date(y, m - 1, d);
 
+    const formatYMD = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     // Fecha inicio: restar meses * 30.5 días aproximadamente
     const dIni = new Date(dFin);
     dIni.setDate(dIni.getDate() - Math.round(meses * 30.4375));
-    document.getElementById('resurtidoFechaInicio').value = dIni.toISOString().split('T')[0];
+    document.getElementById('resurtidoFechaInicio').value = formatYMD(dIni);
 
-    // Fecha días antes
+    // Fecha días antes (fFin - diasAtras)
     const dAntes = new Date(dFin);
     dAntes.setDate(dAntes.getDate() - diasAtras);
-    document.getElementById('resurtidoFechaDiasAntes').value = dAntes.toISOString().split('T')[0];
+    document.getElementById('resurtidoFechaDiasAntes').value = formatYMD(dAntes);
 }
 
 async function ejecutarConsultaResurtidos() {
@@ -156,7 +163,7 @@ async function ejecutarConsultaResurtidos() {
         if (chk && chk.checked) clasifs.push(c);
     });
 
-    const modoClasif = document.getElementById('resurtidoModoClasif')?.value || 'dinamica';
+    const modoClasif = document.getElementById('resurtidoModoClasif')?.value || 'catalogo';
     const respetarMultiplos = document.getElementById('chkResurtidoRespetarMultiplos') ? document.getElementById('chkResurtidoRespetarMultiplos').checked : true;
 
     const payload = {
