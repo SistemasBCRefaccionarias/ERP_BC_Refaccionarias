@@ -436,20 +436,26 @@ def calcular_planeacion_resurtidos(params):
         for r in cur.fetchall():
             aid = int(r[0])
             nombre = str(r[2] or '')
+            gid = int(r[3] or 0)
             mult_db = int(r[4] or 1)
 
-            if aid in multiplos_guardados:
-                mult_final = multiplos_guardados[aid]
-            elif mult_db > 1:
-                mult_final = mult_db
+            # Múltiplos: según especificación, solo los grupos sin filtrar toman múltiplos de la descripción,
+            # los demás grupos deben ser estrictamente una pieza de múltiplo (salvo override en SQLite).
+            if gid in grupos_sin_filtrar:
+                if aid in multiplos_guardados:
+                    mult_final = multiplos_guardados[aid]
+                elif mult_db > 1:
+                    mult_final = mult_db
+                else:
+                    mult_final = extraer_multiplo_nombre(nombre)
             else:
-                mult_final = extraer_multiplo_nombre(nombre)
+                mult_final = multiplos_guardados.get(aid, 1)
 
             articulos_dict[aid] = {
                 'articulo_id': aid,
                 'clave': str(r[1] or '').strip(),
                 'nombre': nombre.strip(),
-                'grupo_id': int(r[3] or 0),
+                'grupo_id': gid,
                 'multiplo': mult_final,
                 'es_par': str(r[5] or 'N').strip().upper(),
                 'izq_der': str(r[6] or 'N').strip().upper(),
@@ -495,13 +501,19 @@ def calcular_planeacion_resurtidos(params):
                 equivalencias_pendientes.add(eq_val)
             if aid not in articulos_dict:
                 nombre = str(r[2] or '')
+                gid = int(r[3] or 0)
                 mult_db = int(r[4] or 1)
-                mult_final = multiplos_guardados.get(aid, mult_db if mult_db > 1 else extraer_multiplo_nombre(nombre))
+
+                if gid in grupos_sin_filtrar:
+                    mult_final = multiplos_guardados.get(aid, mult_db if mult_db > 1 else extraer_multiplo_nombre(nombre))
+                else:
+                    mult_final = multiplos_guardados.get(aid, 1)
+
                 articulos_dict[aid] = {
                     'articulo_id': aid,
                     'clave': str(r[1] or '').strip(),
                     'nombre': nombre.strip(),
-                    'grupo_id': int(r[3] or 0),
+                    'grupo_id': gid,
                     'multiplo': mult_final,
                     'es_par': str(r[5] or 'N').strip().upper(),
                     'izq_der': str(r[6] or 'N').strip().upper(),
@@ -655,16 +667,21 @@ def calcular_planeacion_resurtidos(params):
         if not candidates:
             continue
 
-        # Ordenar por mayor existencia en CEDIS, luego mejor clasificación
-        candidates.sort(key=lambda x: (-x['stock_cedis'], clasif_order.get(x['clasif_almacen'], 99)))
+        # Ordenar por MEJOR CLASIFICACIÓN PRIMERO (A > B > C > D > E > N), luego mayor stock en CEDIS, luego venta
+        candidates.sort(key=lambda x: (
+            clasif_order.get(x['clasif_almacen'], 99),
+            -x['stock_cedis'],
+            -x['venta_piezas']
+        ))
         sel = candidates[0]
         sel['badge_as'] = True
 
         mult = max(1, sel['multiplo'])
         is_par = sel['es_par'] == 'S'
         pack = mult * 2 if is_par and mult % 2 != 0 else mult
-        req = max(pack, sel['promedio_inv'] - sel['stock_almacen'])
-        req_final = math.ceil(req / pack) * pack
+        req_grupo = sum(max(0, r['promedio_inv'] - r['stock_almacen']) for r in rows_grp if r['clasif_almacen'] in selected_clasifs)
+        base_req = max(pack, req_grupo)
+        req_final = math.ceil(base_req / pack) * pack
         avail = max(0, sel['stock_cedis'] - 1 if reservar_minimo_cedis else sel['stock_cedis'])
         sel['surtir_cedis'] = min(req_final, avail)
 
