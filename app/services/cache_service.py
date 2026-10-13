@@ -62,32 +62,70 @@ def actualizar_tablas_intermedias(empresa=None, force=False):
                 "tipo": tipo
             }
 
-        # 2. Venta del día de hoy en DOCTOS_PV
+        # 2. Venta del día de hoy unificando PV (V, D) y VE (F, D)
         cur_fb.execute("""
             SELECT 
-                COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
-                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS VENTA_HOY
-            FROM DOCTOS_PV p
-            LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
-            WHERE p.FECHA = CURRENT_DATE
-              AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F', 'D')
-            GROUP BY COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
+                ALMACEN_ID,
+                SUM(VENTA_HOY)
+            FROM (
+                SELECT 
+                    COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
+                    SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS VENTA_HOY
+                FROM DOCTOS_PV p
+                LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
+                WHERE p.FECHA = CURRENT_DATE
+                  AND p.ESTATUS <> 'C'
+                  AND p.TIPO_DOCTO IN ('V', 'D')
+                GROUP BY COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
+
+                UNION ALL
+
+                SELECT 
+                    v.ALMACEN_ID AS ALMACEN_ID,
+                    SUM(CASE WHEN v.TIPO_DOCTO = 'D' THEN -(v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) ELSE (v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) END) AS VENTA_HOY
+                FROM DOCTOS_VE v
+                WHERE v.FECHA = CURRENT_DATE
+                  AND v.ESTATUS <> 'C'
+                  AND v.APLICADO = 'S'
+                  AND v.TIPO_DOCTO IN ('F', 'D')
+                GROUP BY v.ALMACEN_ID
+            )
+            GROUP BY ALMACEN_ID
         """)
         ventas_hoy = {int(r[0]): float(r[1] or 0.0) for r in cur_fb.fetchall() if r[0] is not None}
 
-        # 3. Ventas promedio últimos 30 días
+        # 3. Ventas promedio últimos 30 días unificando PV (V, D) y VE (F, D)
         cur_fb.execute("""
             SELECT 
-                COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
-                COUNT(DISTINCT p.FECHA) AS DIAS_ACTIVOS,
-                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS TOTAL_VENTA
-            FROM DOCTOS_PV p
-            LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
-            WHERE p.FECHA >= CURRENT_DATE - 30
-              AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F', 'D')
-            GROUP BY COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID)
+                ALMACEN_ID,
+                COUNT(DISTINCT FECHA) AS DIAS_ACTIVOS,
+                SUM(TOTAL_VENTA) AS TOTAL_VENTA
+            FROM (
+                SELECT 
+                    COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) AS ALMACEN_ID,
+                    p.FECHA AS FECHA,
+                    SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS TOTAL_VENTA
+                FROM DOCTOS_PV p
+                LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
+                WHERE p.FECHA >= CURRENT_DATE - 30
+                  AND p.ESTATUS <> 'C'
+                  AND p.TIPO_DOCTO IN ('V', 'D')
+                GROUP BY COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID), p.FECHA
+
+                UNION ALL
+
+                SELECT 
+                    v.ALMACEN_ID AS ALMACEN_ID,
+                    v.FECHA AS FECHA,
+                    SUM(CASE WHEN v.TIPO_DOCTO = 'D' THEN -(v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) ELSE (v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) END) AS TOTAL_VENTA
+                FROM DOCTOS_VE v
+                WHERE v.FECHA >= CURRENT_DATE - 30
+                  AND v.ESTATUS <> 'C'
+                  AND v.APLICADO = 'S'
+                  AND v.TIPO_DOCTO IN ('F', 'D')
+                GROUP BY v.ALMACEN_ID, v.FECHA
+            )
+            GROUP BY ALMACEN_ID
         """)
         ventas_promedio = {}
         dias_activos = {}

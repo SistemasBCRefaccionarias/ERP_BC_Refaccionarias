@@ -100,25 +100,48 @@ def get_ventas_sucursal():
         conn = conectar_db()
         cur = conn.cursor()
 
-        filtro_alm = ""
-        params = [fecha_ini, fecha_fin]
+        filtro_pv_alm = ""
+        filtro_ve_alm = ""
         if almacen_id and almacen_id.isdigit():
-            filtro_alm = "AND COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) = ?"
-            params.append(int(almacen_id))
+            filtro_pv_alm = "AND COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) = ?"
+            filtro_ve_alm = "AND v.ALMACEN_ID = ?"
+            params_pv = [fecha_ini, fecha_fin, int(almacen_id)]
+            params_ve = [fecha_ini, fecha_fin, int(almacen_id)]
+        else:
+            params_pv = [fecha_ini, fecha_fin]
+            params_ve = [fecha_ini, fecha_fin]
+        params_union = tuple(params_pv + params_ve)
 
         # Resumen general (solo ventas vigentes)
         cur.execute(f"""
             SELECT 
-                COUNT(CASE WHEN p.TIPO_DOCTO IN ('V', 'F') THEN p.DOCTO_PV_ID END) AS TICKETS,
-                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS TOTAL_VENTA,
-                AVG(CASE WHEN p.TIPO_DOCTO IN ('V', 'F') THEN (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS TICKET_PROMEDIO
-            FROM DOCTOS_PV p
-            LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
-            WHERE p.FECHA >= ? AND p.FECHA <= ?
-              AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F', 'D')
-              {filtro_alm}
-        """, tuple(params))
+                COUNT(DOCTO_ID) AS TICKETS,
+                SUM(TOTAL_VENTA) AS TOTAL_VENTA,
+                AVG(CASE WHEN TOTAL_VENTA > 0 THEN TOTAL_VENTA END) AS TICKET_PROMEDIO
+            FROM (
+                SELECT 
+                    p.DOCTO_PV_ID AS DOCTO_ID,
+                    CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END AS TOTAL_VENTA
+                FROM DOCTOS_PV p
+                LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
+                WHERE p.FECHA >= ? AND p.FECHA <= ?
+                  AND p.ESTATUS <> 'C'
+                  AND p.TIPO_DOCTO IN ('V', 'D')
+                  {filtro_pv_alm}
+
+                UNION ALL
+
+                SELECT 
+                    v.DOCTO_VE_ID AS DOCTO_ID,
+                    CASE WHEN v.TIPO_DOCTO = 'D' THEN -(v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) ELSE (v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) END AS TOTAL_VENTA
+                FROM DOCTOS_VE v
+                WHERE v.FECHA >= ? AND v.FECHA <= ?
+                  AND v.ESTATUS <> 'C'
+                  AND v.APLICADO = 'S'
+                  AND v.TIPO_DOCTO IN ('F', 'D')
+                  {filtro_ve_alm}
+            )
+        """, params_union)
         r = cur.fetchone()
         resumen = {
             "tickets": int(r[0] or 0),
@@ -129,18 +152,37 @@ def get_ventas_sucursal():
         # Desglose diario
         cur.execute(f"""
             SELECT 
-                p.FECHA,
-                COUNT(CASE WHEN p.TIPO_DOCTO IN ('V', 'F') THEN p.DOCTO_PV_ID END) AS TICKETS,
-                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS TOTAL_VENTA
-            FROM DOCTOS_PV p
-            LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
-            WHERE p.FECHA >= ? AND p.FECHA <= ?
-              AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F', 'D')
-              {filtro_alm}
-            GROUP BY p.FECHA
-            ORDER BY p.FECHA ASC
-        """, tuple(params))
+                FECHA,
+                COUNT(DOCTO_ID) AS TICKETS,
+                SUM(TOTAL_VENTA) AS TOTAL_VENTA
+            FROM (
+                SELECT 
+                    p.FECHA,
+                    p.DOCTO_PV_ID AS DOCTO_ID,
+                    CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END AS TOTAL_VENTA
+                FROM DOCTOS_PV p
+                LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
+                WHERE p.FECHA >= ? AND p.FECHA <= ?
+                  AND p.ESTATUS <> 'C'
+                  AND p.TIPO_DOCTO IN ('V', 'D')
+                  {filtro_pv_alm}
+
+                UNION ALL
+
+                SELECT 
+                    v.FECHA,
+                    v.DOCTO_VE_ID AS DOCTO_ID,
+                    CASE WHEN v.TIPO_DOCTO = 'D' THEN -(v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) ELSE (v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) END AS TOTAL_VENTA
+                FROM DOCTOS_VE v
+                WHERE v.FECHA >= ? AND v.FECHA <= ?
+                  AND v.ESTATUS <> 'C'
+                  AND v.APLICADO = 'S'
+                  AND v.TIPO_DOCTO IN ('F', 'D')
+                  {filtro_ve_alm}
+            )
+            GROUP BY FECHA
+            ORDER BY FECHA ASC
+        """, params_union)
         dias = []
         for d in cur.fetchall():
             dias.append({
@@ -434,26 +476,45 @@ def get_indicadores_hoy():
         conn = conectar_db()
         cur = conn.cursor()
 
-        filtro_alm = ""
+        filtro_pv_alm = ""
+        filtro_ve_alm = ""
         params_hoy = []
         params_ayer = []
 
         if almacen_id and almacen_id.isdigit():
-            filtro_alm = "AND COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) = ?"
-            params_hoy.append(int(almacen_id))
-            params_ayer.append(int(almacen_id))
+            filtro_pv_alm = "AND COALESCE(p.ALMACEN_ID, cj.ALMACEN_ID) = ?"
+            filtro_ve_alm = "AND v.ALMACEN_ID = ?"
+            params_hoy = [int(almacen_id), int(almacen_id)]
+            params_ayer = [int(almacen_id), int(almacen_id)]
 
         # 1. Ventas de Hoy
         cur.execute(f"""
             SELECT 
-                COUNT(CASE WHEN p.TIPO_DOCTO IN ('V', 'F') THEN p.DOCTO_PV_ID END) AS TICKETS,
-                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS TOTAL_VENTA
-            FROM DOCTOS_PV p
-            LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
-            WHERE p.FECHA = CURRENT_DATE
-              AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F', 'D')
-              {filtro_alm}
+                COUNT(DOCTO_ID) AS TICKETS,
+                SUM(TOTAL_VENTA) AS TOTAL_VENTA
+            FROM (
+                SELECT 
+                    p.DOCTO_PV_ID AS DOCTO_ID,
+                    CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END AS TOTAL_VENTA
+                FROM DOCTOS_PV p
+                LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
+                WHERE p.FECHA = CURRENT_DATE
+                  AND p.ESTATUS <> 'C'
+                  AND p.TIPO_DOCTO IN ('V', 'D')
+                  {filtro_pv_alm}
+
+                UNION ALL
+
+                SELECT 
+                    v.DOCTO_VE_ID AS DOCTO_ID,
+                    CASE WHEN v.TIPO_DOCTO = 'D' THEN -(v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) ELSE (v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) END AS TOTAL_VENTA
+                FROM DOCTOS_VE v
+                WHERE v.FECHA = CURRENT_DATE
+                  AND v.ESTATUS <> 'C'
+                  AND v.APLICADO = 'S'
+                  AND v.TIPO_DOCTO IN ('F', 'D')
+                  {filtro_ve_alm}
+            )
         """, tuple(params_hoy))
         r_hoy = cur.fetchone()
         tickets_hoy = int(r_hoy[0] or 0)
@@ -463,14 +524,31 @@ def get_indicadores_hoy():
         # 2. Ventas de Ayer (para comparativa)
         cur.execute(f"""
             SELECT 
-                COUNT(CASE WHEN p.TIPO_DOCTO IN ('V', 'F') THEN p.DOCTO_PV_ID END) AS TICKETS,
-                SUM(CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END) AS TOTAL_VENTA
-            FROM DOCTOS_PV p
-            LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
-            WHERE p.FECHA = CURRENT_DATE - 1
-              AND p.ESTATUS <> 'C'
-              AND p.TIPO_DOCTO IN ('V', 'F', 'D')
-              {filtro_alm}
+                COUNT(DOCTO_ID) AS TICKETS,
+                SUM(TOTAL_VENTA) AS TOTAL_VENTA
+            FROM (
+                SELECT 
+                    p.DOCTO_PV_ID AS DOCTO_ID,
+                    CASE WHEN p.TIPO_DOCTO = 'D' THEN -(p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) ELSE (p.IMPORTE_NETO + COALESCE(p.TOTAL_IMPUESTOS, 0)) END AS TOTAL_VENTA
+                FROM DOCTOS_PV p
+                LEFT JOIN CAJAS cj ON cj.CAJA_ID = p.CAJA_ID
+                WHERE p.FECHA = CURRENT_DATE - 1
+                  AND p.ESTATUS <> 'C'
+                  AND p.TIPO_DOCTO IN ('V', 'D')
+                  {filtro_pv_alm}
+
+                UNION ALL
+
+                SELECT 
+                    v.DOCTO_VE_ID AS DOCTO_ID,
+                    CASE WHEN v.TIPO_DOCTO = 'D' THEN -(v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) ELSE (v.IMPORTE_NETO + COALESCE(v.TOTAL_IMPUESTOS, 0)) END AS TOTAL_VENTA
+                FROM DOCTOS_VE v
+                WHERE v.FECHA = CURRENT_DATE - 1
+                  AND v.ESTATUS <> 'C'
+                  AND v.APLICADO = 'S'
+                  AND v.TIPO_DOCTO IN ('F', 'D')
+                  {filtro_ve_alm}
+            )
         """, tuple(params_ayer))
         r_ayer = cur.fetchone()
         total_ayer = float(r_ayer[1] or 0)
