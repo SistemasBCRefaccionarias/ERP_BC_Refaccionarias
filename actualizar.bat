@@ -7,8 +7,8 @@ echo   ACTUALIZANDO ERP BC REFACCIONARIAS (PRODUCCION)
 echo ========================================================
 echo.
 echo [1/3] Deteniendo servidor en puerto 6060...
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":6060" ^| findstr "LISTENING"') do taskkill /f /pid %%a 2>nul
-timeout /t 2 /nobreak > nul
+taskkill /F /IM python.exe /IM pythonw.exe 2>nul
+powershell -Command "$p = Get-NetTCPConnection -LocalPort 6060 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; if ($p) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue }"
 echo.
 echo [2/3] Descargando última versión compilada desde GitHub...
 where git >nul 2>&1

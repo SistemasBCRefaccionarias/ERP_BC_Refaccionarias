@@ -474,6 +474,7 @@
                 const sDes = document.getElementById('traspasoAlmacenDestino');
                 const nomOri = data.almacen_origen || (sOri.selectedIndex >= 0 ? sOri.options[sOri.selectedIndex].text : '');
                 const nomDes = data.almacen_destino || (sDes.selectedIndex >= 0 ? sDes.options[sDes.selectedIndex].text : '');
+                const folioFinal = data.folio || folio || '';
 
                 const impInfo = data.impresion || {};
                 const esOrigenCedis = nomOri.toUpperCase().includes('CEDIS');
@@ -505,8 +506,6 @@
 
                     const elHora = document.getElementById('tckHora');
                     if (elHora) elHora.textContent = data.hora_caja || '';
-
-                    const folioFinal = data.folio || folio;
 
                     const elFolio = document.getElementById('tckFolio');
                     if (elFolio) elFolio.textContent = folioFinal;
