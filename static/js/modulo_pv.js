@@ -121,6 +121,34 @@ function pvActualizarUiSucursalYVendedor(esAdmin) {
     }
 }
 
+// ================= HELPERS DE CLASIFICACIÓN POR SUCURSAL =================
+
+function pvObtenerClaseClasificacion(clasif) {
+    if (!clasif || clasif === 'N/A' || clasif === '-') return 'bg-slate-100 text-slate-600 border-slate-300';
+    const c = String(clasif).trim().toUpperCase();
+    switch (c) {
+        case 'A': return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+        case 'B': return 'bg-blue-100 text-blue-800 border-blue-300';
+        case 'C': return 'bg-amber-100 text-amber-900 border-amber-300';
+        case 'D': return 'bg-purple-100 text-purple-800 border-purple-300';
+        case 'E': return 'bg-rose-100 text-rose-800 border-rose-300';
+        case 'N': return 'bg-slate-100 text-slate-600 border-slate-200';
+        default: return 'bg-slate-100 text-slate-700 border-slate-300';
+    }
+}
+
+function pvObtenerBadgeClasificacion(clasif, emblema = null, opciones = {}) {
+    if (!clasif || clasif === 'N/A' || clasif === '-') {
+        if (!opciones.mostrarVacio) return '';
+        clasif = '-';
+    }
+    const cUpper = String(clasif).trim().toUpperCase();
+    const claseColor = pvObtenerClaseClasificacion(cUpper);
+    const prefijo = emblema ? `<span class="opacity-75 font-semibold mr-1">${emblema}:</span>` : '';
+    const texto = opciones.compacto ? `Clasif: ${cUpper}` : `Clasif: ${cUpper}`;
+    return `<span class="inline-flex items-center text-[9px] font-black px-1.5 py-0.5 rounded-md border ${claseColor} tracking-tight shadow-2xs">${prefijo}${texto}</span>`;
+}
+
 function pvCambiarSucursalOperacion(sucId) {
     if (!sucId) return;
     const suc = (PV_STATE.catalogoSucursales || []).find(s => String(s.id) === String(sucId));
@@ -144,10 +172,15 @@ function pvCambiarSucursalOperacion(sucId) {
             if (elNom) elNom.textContent = matchV.nombre;
         }
 
-        // Si hay una búsqueda activa, refrescar para consultar stock local de la nueva sucursal
-        const inputArt = document.getElementById('pvInputBusquedaArticulo');
-        if (inputArt && inputArt.value.trim()) {
-            pvEjecutarBusquedaArticulos();
+        // Si hay una ficha de mostrador activa, recargarla con la nueva sucursal para actualizar clasificaciones y stock
+        if (PV_STATE.articuloMostradorActivo && PV_STATE.articuloMostradorActivo.clave) {
+            pvCargarArticuloMostrador(PV_STATE.articuloMostradorActivo.clave);
+        } else {
+            // Si hay una búsqueda activa, refrescar para consultar stock local y clasificaciones de la nueva sucursal
+            const inputArt = document.getElementById('pvInputBusquedaArticulo');
+            if (inputArt && inputArt.value.trim()) {
+                pvEjecutarBusquedaArticulos();
+            }
         }
     }
 }
@@ -700,10 +733,15 @@ function pvRenderizarSugerenciasArticulos(query) {
             ? `<span class="font-black text-slate-900 text-xs">${formatearMoneda(art.precio)}</span>`
             : '';
 
+        const badgeClasif = (art.clasificacion && art.clasificacion !== 'N/A')
+            ? pvObtenerBadgeClasificacion(art.clasificacion, art.emblema_sucursal, { compacto: true })
+            : '';
+
         item.innerHTML = `
             <div class="truncate mr-3 flex-1 min-w-0">
-                <div class="flex items-center gap-2 flex-wrap">
+                <div class="flex items-center gap-1.5 flex-wrap">
                     <span class="font-mono font-black text-indigo-700 text-xs">${claveHigh}</span>
+                    ${badgeClasif}
                     ${eqBadge}
                 </div>
                 <div class="text-[11px] text-slate-600 truncate mt-0.5 font-medium">${nomHigh}</div>
@@ -938,9 +976,10 @@ function pvRenderizarGridArticulos(articulos) {
                         <!-- Info: Clave, Marca, Equivalencia y Nombre -->
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center justify-between gap-1">
-                                <div class="flex items-center gap-1 min-w-0">
+                                <div class="flex items-center gap-1.5 min-w-0 flex-wrap">
                                     <span class="text-xs sm:text-sm font-black text-slate-900 group-hover:text-indigo-600 transition tracking-tight truncate cursor-pointer" onclick="pvCargarArticuloMostrador('${art.clave}')">${art.clave}</span>
                                     <span class="text-[8px] font-black uppercase tracking-wider bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">${art.marca || 'GEN'}</span>
+                                    ${(art.clasificacion && art.clasificacion !== 'N/A') ? pvObtenerBadgeClasificacion(art.clasificacion, art.emblema_sucursal, { compacto: true }) : ''}
                                 </div>
                                 <button type="button" onclick="pvCargarArticuloMostrador('${art.clave}')" title="Ver ficha completa de mostrador y existencias BC/RT"
                                         class="h-7 w-7 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-500 flex items-center justify-center text-[10px] transition cursor-pointer active:scale-95 shrink-0">
@@ -1098,7 +1137,7 @@ function pvRenderizarFichaMostrador(art) {
             if (esRT) {
                 return `
                     <div class="bg-white rounded-xl border border-amber-300/90 hover:border-amber-500 p-2.5 flex items-center justify-between shadow-2xs transition">
-                        <div class="flex items-center gap-2 min-w-0 pr-2">
+                        <div class="flex items-center gap-1.5 min-w-0 pr-2">
                             <span class="text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded shrink-0">RT</span>
                             <span class="text-xs font-bold text-slate-800 uppercase tracking-tight truncate">${al.nombre}</span>
                         </div>
@@ -1106,10 +1145,14 @@ function pvRenderizarFichaMostrador(art) {
                     </div>
                 `;
             } else {
+                const badgeClasifAlm = (al.clasificacion && al.clasificacion !== 'N/A')
+                    ? `<span class="text-[9px] font-black px-1.5 py-0.5 rounded border shrink-0 ${pvObtenerClaseClasificacion(al.clasificacion)}">Clasif: ${al.clasificacion}</span>`
+                    : '';
                 return `
                     <div class="bg-white rounded-xl border border-red-200/90 hover:border-red-400 p-2.5 flex items-center justify-between shadow-2xs transition">
-                        <div class="flex items-center gap-2 min-w-0 pr-2">
+                        <div class="flex items-center gap-1.5 min-w-0 pr-2">
                             <span class="text-[9px] font-black bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded shrink-0">BC</span>
+                            ${badgeClasifAlm}
                             <span class="text-xs font-bold text-slate-800 uppercase tracking-tight truncate">${al.nombre}</span>
                         </div>
                         <div class="text-base font-black text-slate-900 shrink-0 tabular-nums">${al.piezas}</div>
@@ -1125,14 +1168,20 @@ function pvRenderizarFichaMostrador(art) {
     let equivsHtml = '';
     if (art.equivalencias && art.equivalencias.length > 0) {
         equivsHtml = art.equivalencias.map(eq => {
+            const badgeClasifEq = (eq.clasificacion && eq.clasificacion !== 'N/A')
+                ? `<span class="text-[8.5px] font-black px-1.5 py-0.2 rounded border ${pvObtenerClaseClasificacion(eq.clasificacion)}">Clasif: ${eq.clasificacion}</span>`
+                : '';
             if (eq.stock > 0) {
                 return `
                     <div class="bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-200/90 hover:border-emerald-400 rounded-2xl p-2.5 transition shadow-2xs">
                         <div class="flex items-center justify-between gap-1">
-                            <span class="text-xs font-black text-slate-900 hover:text-indigo-600 cursor-pointer"
-                                  onclick="pvCargarArticuloMostrador('${eq.clave}')" title="Cargar equivalente ${eq.clave}">
-                                ${eq.clave}
-                            </span>
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <span class="text-xs font-black text-slate-900 hover:text-indigo-600 cursor-pointer"
+                                      onclick="pvCargarArticuloMostrador('${eq.clave}')" title="Cargar equivalente ${eq.clave}">
+                                    ${eq.clave}
+                                </span>
+                                ${badgeClasifEq}
+                            </div>
                             <div class="flex items-center gap-1.5">
                                 <span class="text-xs font-black text-slate-900">${formatearMoneda(eq.precio)}</span>
                                 <button type="button" onclick="event.stopPropagation(); pvAgregarEquivalenciaAlCarrito('${eq.clave}')"
@@ -1161,7 +1210,10 @@ function pvRenderizarFichaMostrador(art) {
                     <div class="bg-rose-50/50 hover:bg-rose-50 border border-rose-200/80 rounded-2xl p-2.5 transition cursor-pointer shadow-2xs"
                          onclick="pvCargarArticuloMostrador('${eq.clave}')" title="Cargar equivalente ${eq.clave}">
                         <div class="flex items-center justify-between">
-                            <span class="text-xs font-black text-slate-800">${eq.clave}</span>
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <span class="text-xs font-black text-slate-800">${eq.clave}</span>
+                                ${badgeClasifEq}
+                            </div>
                             <span class="text-xs font-black text-slate-800">${formatearMoneda(eq.precio)}</span>
                         </div>
                         <div class="flex items-end justify-between gap-1 mt-1">
@@ -1193,10 +1245,15 @@ function pvRenderizarFichaMostrador(art) {
                             Tabla asignada: ${tablaAsig}
                         </div>
                         <div class="flex flex-wrap items-center gap-1.5 mt-2">
-                            <span class="text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-lg">
-                                🏷️ Clasificación: ${art.linea || 'GENERAL'}
+                            <span class="text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-lg">
+                                🏷️ Línea: ${art.linea || 'GENERAL'}
                             </span>
                             ${art.marca ? `<span class="text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-lg">Marca: ${art.marca}</span>` : ''}
+                            ${(art.clasificacion && art.clasificacion !== 'N/A') ? `
+                                <span class="text-[11px] font-black px-2.5 py-0.5 rounded-lg border ${pvObtenerClaseClasificacion(art.clasificacion)} shadow-2xs">
+                                    ⭐ Clasificación (${art.nombre_sucursal || PV_STATE.sucursalActualNombre || 'Sucursal'}): <strong class="text-xs uppercase">${art.clasificacion}</strong>
+                                </span>
+                            ` : ''}
                         </div>
                         <h2 class="text-lg sm:text-xl font-black text-slate-900 uppercase leading-snug mt-2 tracking-tight">
                             ${art.nombre}
@@ -1300,6 +1357,9 @@ function pvAgregarAlPedidoDesdeMostrador() {
         stock_global: art.total_piezas || 0,
         stock_local: stockLocal,
         stock_cedis: stockCedis,
+        clasificacion: art.clasificacion || null,
+        emblema_sucursal: art.emblema_sucursal || null,
+        nombre_sucursal: art.nombre_sucursal || null,
         bonificacion: (art.clave.startsWith('G-') || art.nombre.toUpperCase().includes('ACUMULADOR'))
             ? { clave: 'B03', monto: 525.0, nombre: 'BONIFICACION ACUMULADOR USADO GRUPO 3' }
             : null
@@ -1380,6 +1440,18 @@ async function pvAbrirModalDetalle(clave) {
 
             document.getElementById('pvModalClaveTitulo').textContent = art.clave;
             document.getElementById('pvModalLineaTitulo').textContent = art.linea || 'REFACCIONES';
+
+            const clasifBadge = document.getElementById('pvModalClasifBadge');
+            if (clasifBadge) {
+                if (art.clasificacion && art.clasificacion !== 'N/A') {
+                    clasifBadge.className = `text-xs font-black px-2 py-0.5 rounded-lg border ${pvObtenerClaseClasificacion(art.clasificacion)}`;
+                    clasifBadge.textContent = `Clasif: ${art.clasificacion} (${art.nombre_sucursal || PV_STATE.sucursalActualNombre || 'Sucursal'})`;
+                    clasifBadge.classList.remove('hidden');
+                } else {
+                    clasifBadge.classList.add('hidden');
+                }
+            }
+
             document.getElementById('pvModalNombreArticulo').textContent = art.nombre;
             document.getElementById('pvModalStockAlmacen').textContent = `${art.stock_tu_almacen || 0} pzas`;
             document.getElementById('pvModalTotalExistencias').textContent = art.total_piezas || 0;
@@ -1432,6 +1504,9 @@ async function pvAbrirModalDetalle(clave) {
                             stock_global: art.total_piezas,
                             stock_local: stockLocal,
                             stock_cedis: stockCedis,
+                            clasificacion: art.clasificacion || null,
+                            emblema_sucursal: art.emblema_sucursal || null,
+                            nombre_sucursal: art.nombre_sucursal || null,
                             bonificacion: (art.clave.startsWith('G-') || art.nombre.toUpperCase().includes('ACUMULADOR')) ? { clave: 'B03', monto: 525.0, nombre: 'BONIFICACION ACUMULADOR USADO GRUPO 3' } : null
                         });
                         pvCerrarModalDetalle();
@@ -1467,10 +1542,14 @@ async function pvAbrirModalDetalle(clave) {
                         const badgeColor = esRT
                             ? '<span class="text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded shrink-0 mr-1.5">RT</span>'
                             : '<span class="text-[9px] font-black bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded shrink-0 mr-1.5">BC</span>';
+                        const badgeClasif = (!esRT && al.clasificacion && al.clasificacion !== 'N/A')
+                            ? `<span class="text-[9px] font-black px-1.5 py-0.5 rounded border shrink-0 mr-1.5 ${pvObtenerClaseClasificacion(al.clasificacion)}">Clasif: ${al.clasificacion}</span>`
+                            : '';
                         return `
                             <div class="py-1.5 flex items-center justify-between text-xs border-b border-slate-50 last:border-0">
                                 <div class="flex items-center min-w-0 pr-2">
                                     ${badgeColor}
+                                    ${badgeClasif}
                                     <div class="font-bold text-slate-800 truncate">${al.nombre}</div>
                                 </div>
                                 <div class="text-sm font-black text-slate-900 shrink-0 tabular-nums">${al.piezas}</div>
@@ -1488,10 +1567,17 @@ async function pvAbrirModalDetalle(clave) {
             if (conEqCount) conEqCount.textContent = `(${art.equivalencias ? art.equivalencias.length : 0})`;
             if (contEq) {
                 if (art.equivalencias && art.equivalencias.length > 0) {
-                    contEq.innerHTML = art.equivalencias.map(eq => `
+                    contEq.innerHTML = art.equivalencias.map(eq => {
+                        const badgeClasifEq = (eq.clasificacion && eq.clasificacion !== 'N/A')
+                            ? `<span class="text-[8.5px] font-black px-1.5 py-0.2 rounded border ${pvObtenerClaseClasificacion(eq.clasificacion)}">Clasif: ${eq.clasificacion}</span>`
+                            : '';
+                        return `
                         <div class="p-2 bg-emerald-50/50 hover:bg-emerald-50 rounded-xl border border-emerald-100 flex items-center justify-between text-xs transition">
                             <div class="min-w-0 pr-2 cursor-pointer flex-1" onclick="pvAbrirModalDetalle('${eq.clave}')">
-                                <div class="font-black text-slate-900">${eq.clave}</div>
+                                <div class="flex items-center gap-1.5">
+                                    <div class="font-black text-slate-900">${eq.clave}</div>
+                                    ${badgeClasifEq}
+                                </div>
                                 <div class="text-[10px] text-slate-500 truncate" title="${eq.nombre}">${eq.nombre}</div>
                             </div>
                             <div class="flex items-center gap-2 shrink-0">
@@ -1508,7 +1594,8 @@ async function pvAbrirModalDetalle(clave) {
                                 ` : ''}
                             </div>
                         </div>
-                    `).join('');
+                        `;
+                    }).join('');
                 } else {
                     contEq.innerHTML = '<div class="p-3 text-center text-slate-400 italic">No hay equivalencias registradas</div>';
                 }
@@ -1564,6 +1651,9 @@ function pvAgregarAlCarrito(art) {
             descuento_pct: 0,
             stock_local: stockLocal,
             stock_cedis: stockCedis,
+            clasificacion: art.clasificacion || null,
+            emblema_sucursal: art.emblema_sucursal || null,
+            nombre_sucursal: art.nombre_sucursal || null,
             bonificacion: art.bonificacion || null
         };
         PV_STATE.carrito.push(nuevoItem);
@@ -1673,7 +1763,10 @@ function pvActualizarCarritoUi() {
         return `
             <tr class="hover:bg-slate-50/80 transition border-b border-slate-100 last:border-0 text-xs ${esBonif ? 'bg-emerald-50/60' : ''}">
                 <td class="py-3 px-3">
-                    <div class="font-black text-slate-900">${item.clave}</div>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="font-black text-slate-900">${item.clave}</span>
+                        ${(item.clasificacion && item.clasificacion !== 'N/A') ? pvObtenerBadgeClasificacion(item.clasificacion, item.emblema_sucursal, { compacto: true }) : ''}
+                    </div>
                     <div class="text-[10px] text-slate-500 truncate max-w-[150px]" title="${item.nombre}">${item.nombre}</div>
                     ${item.bonificacion ? `<div class="text-[9px] text-emerald-700 font-bold mt-0.5">✓ Casco bonificado (-$${item.bonificacion.monto})</div>` : ''}
                 </td>

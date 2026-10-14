@@ -443,6 +443,70 @@ def obtener_almacenes_rt_por_clave(clave):
             except: pass
     return almacenes_rt
 
+# Mapeo de almacén / sucursal a columna de clasificación en LIBRES_ARTICULOS
+MAPA_COLUMNA_POR_ALMACEN = {
+    620110: ("CE", "C_CEDIS_S", "CEDIS"),
+    166719: ("SA", "C_SAULO_S", "Sucursal Saulo"),
+    99934: ("BR", "C_BRAVO_S", "Sucursal Bravo"),
+    412880: ("DV", "C_DIVISION_S", "Sucursal División"),
+    158254: ("RV", "C_REVOLUCION_S", "Sucursal Revolución"),
+    202797: ("TJ", "C_TAJITO_S", "Sucursal Tajito"),
+    1147933: ("AG", "C_ARTESG_S", "Sucursal Artes Gráficas"),
+    1254317: ("NA", "C_NAZAS_S", "Sucursal Nazas"),
+    1423447: ("AE", "C_AEROPUERTO_S", "Sucursal Aeropuerto"),
+    1473736: ("FC", "C_FCOIMADERO_S", "Sucursal Fco. I. Madero"),
+    1629323: ("CD", "C_CARDENAS_S", "Sucursal Cárdenas"),
+    1800730: ("GO", "C_GHIDALGO_S", "Sucursal Gómez Hidalgo"),
+    1820837: ("MA", "C_MATAMOROS_S", "Sucursal Matamoros"),
+    2168433: ("GD", "C_ALMGOGPE_S", "Alm Go Guadalupe"),
+    486662: ("VA", "C_SALTILLO_S", "Sucursal Valdez"),
+}
+
+MAPA_NOMBRE_SUCURSAL = [
+    ("CEDIS", ("CE", "C_CEDIS_S", "CEDIS")),
+    ("SAULO", ("SA", "C_SAULO_S", "Sucursal Saulo")),
+    ("BRAVO", ("BR", "C_BRAVO_S", "Sucursal Bravo")),
+    ("DIVISION", ("DV", "C_DIVISION_S", "Sucursal División")),
+    ("DIVISIÓN", ("DV", "C_DIVISION_S", "Sucursal División")),
+    ("REVOLUCION", ("RV", "C_REVOLUCION_S", "Sucursal Revolución")),
+    ("REVOLUCIÓN", ("RV", "C_REVOLUCION_S", "Sucursal Revolución")),
+    ("TAJITO", ("TJ", "C_TAJITO_S", "Sucursal Tajito")),
+    ("ARTES", ("AG", "C_ARTESG_S", "Sucursal Artes Gráficas")),
+    ("NAZAS", ("NA", "C_NAZAS_S", "Sucursal Nazas")),
+    ("AEROPUERTO", ("AE", "C_AEROPUERTO_S", "Sucursal Aeropuerto")),
+    ("MADERO", ("FC", "C_FCOIMADERO_S", "Sucursal Fco. I. Madero")),
+    ("CARDENAS", ("CD", "C_CARDENAS_S", "Sucursal Cárdenas")),
+    ("CÁRDENAS", ("CD", "C_CARDENAS_S", "Sucursal Cárdenas")),
+    ("HIDALGO", ("GO", "C_GHIDALGO_S", "Sucursal Gómez Hidalgo")),
+    ("GOMEZ", ("GO", "C_GHIDALGO_S", "Sucursal Gómez Hidalgo")),
+    ("GÓMEZ", ("GO", "C_GHIDALGO_S", "Sucursal Gómez Hidalgo")),
+    ("MATAMOROS", ("MA", "C_MATAMOROS_S", "Sucursal Matamoros")),
+    ("GUADALUPE", ("GD", "C_ALMGOGPE_S", "Alm Go Guadalupe")),
+    ("VALDEZ", ("VA", "C_SALTILLO_S", "Sucursal Valdez")),
+    ("SALTILLO", ("VA", "C_SALTILLO_S", "Sucursal Valdez")),
+]
+
+def resolver_info_clasificacion_sucursal(almacen_id=None, nombre_almacen=None):
+    """
+    Retorna tupla (emblema, columna_db, nombre_sucursal) para el almacén indicado.
+    Default: ("CE", "C_CEDIS_S", "CEDIS").
+    """
+    if almacen_id:
+        try:
+            aid = int(almacen_id)
+            if aid in MAPA_COLUMNA_POR_ALMACEN:
+                return MAPA_COLUMNA_POR_ALMACEN[aid]
+        except (ValueError, TypeError):
+            pass
+
+    if nombre_almacen:
+        n_up = str(nombre_almacen).upper()
+        for kw, info in MAPA_NOMBRE_SUCURSAL:
+            if kw in n_up:
+                return info
+
+    return ("CE", "C_CEDIS_S", "CEDIS")
+
 # ================= 3. BÚSQUEDA Y DETALLE DE ARTÍCULOS POS =================
 
 @pv_bp.route('/api/pv/articulos/sugerencias', methods=['GET'])
@@ -457,11 +521,11 @@ def sugerencias_articulos_pos():
         conn = conectar_db()
         cur = conn.cursor()
         col_equiv = detectar_columna_equivalencia(cur)
-        join_equiv = f"LEFT JOIN LIBRES_ARTICULOS la ON la.ARTICULO_ID = a.ARTICULO_ID" if col_equiv else ""
         col_equiv_select = f"COALESCE(TRIM(la.{col_equiv}), '')" if col_equiv else "''"
         filtro_equiv = f"OR UPPER(la.{col_equiv}) LIKE ?" if col_equiv else ""
 
         alm_id_num = int(almacen_id) if almacen_id and almacen_id.isdigit() else (session.get('sucursal_id') or 620110)
+        emblema_suc, col_clasif, nombre_suc = resolver_info_clasificacion_sucursal(alm_id_num)
 
         listas = resolver_listas_precios(conn)
         precio_id = listas.get("publico", 42) or 42
@@ -482,11 +546,12 @@ def sugerencias_articulos_pos():
                  WHERE s.ARTICULO_ID = a.ARTICULO_ID AND s.ALMACEN_ID = ?) AS STK_LOCAL,
                 (SELECT FIRST 1 p.PRECIO
                  FROM PRECIOS_ARTICULOS p
-                 WHERE p.ARTICULO_ID = a.ARTICULO_ID AND p.PRECIO_EMPRESA_ID = ?) AS PRECIO
+                 WHERE p.ARTICULO_ID = a.ARTICULO_ID AND p.PRECIO_EMPRESA_ID = ?) AS PRECIO,
+                COALESCE(TRIM(la.{col_clasif}), 'N/A') AS CLASIF
             FROM CLAVES_ARTICULOS ca
             JOIN ARTICULOS a ON a.ARTICULO_ID = ca.ARTICULO_ID
             JOIN ROLES_CLAVES_ARTICULOS r ON r.ROL_CLAVE_ART_ID = ca.ROL_CLAVE_ART_ID AND r.ES_PPAL = 'S'
-            {join_equiv}
+            LEFT JOIN LIBRES_ARTICULOS la ON la.ARTICULO_ID = a.ARTICULO_ID
             WHERE UPPER(ca.CLAVE_ARTICULO) LIKE ?
                OR UPPER(a.NOMBRE) LIKE ?
                {filtro_equiv}
@@ -527,6 +592,9 @@ def sugerencias_articulos_pos():
         for r in rows:
             art_id = int(r[3])
             clave_art = str(r[0]).strip()
+            clasif_art = str(r[6]).strip() if (len(r) > 6 and r[6]) else "N/A"
+            if not clasif_art:
+                clasif_art = "N/A"
             res.append({
                 "clave": clave_art,
                 "nombre": str(r[1]).strip(),
@@ -535,7 +603,10 @@ def sugerencias_articulos_pos():
                 "stock_local": float(r[4] or 0),
                 "stock_bc": float(stock_bc_map.get(art_id, 0.0)),
                 "stock_rt": float(stock_rt_map.get(clave_art.upper(), 0.0)),
-                "precio": float(r[5] or 0)
+                "precio": float(r[5] or 0),
+                "clasificacion": clasif_art,
+                "emblema_sucursal": emblema_suc,
+                "nombre_sucursal": nombre_suc
             })
 
         return jsonify(res)
@@ -692,7 +763,8 @@ def buscar_articulos_pos():
 
         # Resolver almacén local (de parámetro o de la sucursal del usuario)
         usr_suc_id = session.get('sucursal_id')
-        alm_id_num = int(almacen_id) if (almacen_id and str(almacen_id).isdigit()) else (int(usr_suc_id) if usr_suc_id else None)
+        alm_id_num = int(almacen_id) if (almacen_id and str(almacen_id).isdigit()) else (int(usr_suc_id) if usr_suc_id else 620110)
+        emblema_suc, col_clasif, nombre_suc = resolver_info_clasificacion_sucursal(alm_id_num)
 
         # Preparar filtro WHERE en Microsip
         filtros_mp = [
@@ -828,7 +900,8 @@ def buscar_articulos_pos():
                 {precio_venta_expr} AS PRECIO_VENTA,
                 COALESCE(p_pub.PRECIO, 0) AS PRECIO_PUBLICO,
                 COALESCE(p_tal.PRECIO, 0) AS PRECIO_TALLER,
-                COALESCE(TRIM(li.NOMBRE), '') AS LINEA
+                COALESCE(TRIM(li.NOMBRE), '') AS LINEA,
+                COALESCE(TRIM(la.{col_clasif}), 'N/A') AS CLASIFICACION
             FROM ARTICULOS a
             JOIN CLAVES_ARTICULOS ca ON ca.ARTICULO_ID = a.ARTICULO_ID
             JOIN ROLES_CLAVES_ARTICULOS r ON r.ROL_CLAVE_ART_ID = ca.ROL_CLAVE_ART_ID AND r.ES_PPAL = 'S'
@@ -896,6 +969,9 @@ def buscar_articulos_pos():
             stk_local = stock_local_map[art_id]
             stk_cedis = stock_cedis_map[art_id]
             linea = str(r[7]).strip()
+            clasif_art = str(r[8]).strip() if (len(r) > 8 and r[8]) else "N/A"
+            if not clasif_art:
+                clasif_art = "N/A"
 
             marca_detectada = "GONHER"
             for m_test in ["GONHER", "CHECKER", "MORESA", "GROB", "VOLTMAX", "SAFETY", "GATES", "MOBIL", "NGK", "CARTEK", "LUBRAL", "FULO"]:
@@ -931,6 +1007,9 @@ def buscar_articulos_pos():
                 "stock_cedis": stk_cedis,
                 "marca": marca_detectada,
                 "linea": linea,
+                "clasificacion": clasif_art,
+                "emblema_sucursal": emblema_suc,
+                "nombre_sucursal": nombre_suc,
                 "tiene_foto": tiene_foto,
                 "foto_url": f"/api/articulos/foto/{art_id}" if tiene_foto else None,
                 "bonificacion": bonif_sugerida
@@ -976,6 +1055,9 @@ def detalle_articulo_pos(clave):
         conn = conectar_db()
         cur = conn.cursor()
 
+        alm_id_num = int(almacen_id) if (almacen_id and str(almacen_id).isdigit()) else (int(session.get('sucursal_id')) if session.get('sucursal_id') else 620110)
+        emblema_suc, col_clasif, nombre_suc = resolver_info_clasificacion_sucursal(alm_id_num)
+
         listas = resolver_listas_precios(conn)
         precio_taller_id = listas.get("talleres", 67032)
         precio_pub_id = listas.get("publico", 42)
@@ -1005,7 +1087,8 @@ def detalle_articulo_pos(clave):
                 {precio_venta_expr} AS PRECIO_VENTA,
                 COALESCE(TRIM(li.NOMBRE), '') AS LINEA,
                 COALESCE(p_pub.PRECIO, 0) AS PRECIO_PUBLICO,
-                COALESCE(p_tal.PRECIO, 0) AS PRECIO_TALLER
+                COALESCE(p_tal.PRECIO, 0) AS PRECIO_TALLER,
+                COALESCE(TRIM(la.{col_clasif}), 'N/A') AS CLASIFICACION
             FROM ARTICULOS a
             JOIN CLAVES_ARTICULOS ca ON ca.ARTICULO_ID = a.ARTICULO_ID
             JOIN ROLES_CLAVES_ARTICULOS r ON r.ROL_CLAVE_ART_ID = ca.ROL_CLAVE_ART_ID AND r.ES_PPAL = 'S'
@@ -1030,6 +1113,45 @@ def detalle_articulo_pos(clave):
         linea_art = str(art_row[5]).strip()
         precio_pub_art = float(art_row[6] or 0)
         precio_tal_art = float(art_row[7] or 0)
+        clasif_art = str(art_row[8]).strip() if (len(art_row) > 8 and art_row[8]) else "N/A"
+        if not clasif_art:
+            clasif_art = "N/A"
+
+        # Obtener clasificaciones de todas las sucursales para este artículo
+        clasif_sucursales_map = {}
+        try:
+            cur.execute("""
+                SELECT 
+                    COALESCE(TRIM(C_CEDIS_S), 'N/A'),
+                    COALESCE(TRIM(C_SAULO_S), 'N/A'),
+                    COALESCE(TRIM(C_BRAVO_S), 'N/A'),
+                    COALESCE(TRIM(C_DIVISION_S), 'N/A'),
+                    COALESCE(TRIM(C_REVOLUCION_S), 'N/A'),
+                    COALESCE(TRIM(C_TAJITO_S), 'N/A'),
+                    COALESCE(TRIM(C_ARTESG_S), 'N/A'),
+                    COALESCE(TRIM(C_NAZAS_S), 'N/A'),
+                    COALESCE(TRIM(C_AEROPUERTO_S), 'N/A'),
+                    COALESCE(TRIM(C_FCOIMADERO_S), 'N/A'),
+                    COALESCE(TRIM(C_CARDENAS_S), 'N/A'),
+                    COALESCE(TRIM(C_GHIDALGO_S), 'N/A'),
+                    COALESCE(TRIM(C_MATAMOROS_S), 'N/A'),
+                    COALESCE(TRIM(C_ALMGOGPE_S), 'N/A'),
+                    COALESCE(TRIM(C_SALTILLO_S), 'N/A')
+                FROM LIBRES_ARTICULOS
+                WHERE ARTICULO_ID = ?
+            """, (art_id,))
+            r_c = cur.fetchone()
+            if r_c:
+                cols_nombres = [
+                    "C_CEDIS_S", "C_SAULO_S", "C_BRAVO_S", "C_DIVISION_S", "C_REVOLUCION_S",
+                    "C_TAJITO_S", "C_ARTESG_S", "C_NAZAS_S", "C_AEROPUERTO_S", "C_FCOIMADERO_S",
+                    "C_CARDENAS_S", "C_GHIDALGO_S", "C_MATAMOROS_S", "C_ALMGOGPE_S", "C_SALTILLO_S"
+                ]
+                for idx_col, col_name in enumerate(cols_nombres):
+                    val = str(r_c[idx_col]).strip() if r_c[idx_col] else "N/A"
+                    clasif_sucursales_map[col_name] = val if val else "N/A"
+        except Exception as e_c:
+            print("Aviso al consultar clasificaciones por sucursal:", e_c)
 
         # Existencias desglosadas por almacén
         cur.execute("""
@@ -1052,7 +1174,6 @@ def detalle_articulo_pos(clave):
         stock_bc_total = 0
         stock_tu_almacen = 0
         stock_cedis = 0
-        alm_id_num = int(almacen_id) if (almacen_id and str(almacen_id).isdigit()) else (int(session.get('sucursal_id')) if session.get('sucursal_id') else None)
 
         for r_alm in cur.fetchall():
             alm_id = int(r_alm[0])
@@ -1065,12 +1186,17 @@ def detalle_articulo_pos(clave):
             if alm_id == 620110 or 'CEDIS' in nom_alm.upper():
                 stock_cedis += pzas
 
+            alm_emb, alm_col, _ = resolver_info_clasificacion_sucursal(alm_id, nom_alm)
+            alm_clasif = clasif_sucursales_map.get(alm_col, "N/A")
+
             item_alm = {
                 "almacen_id": alm_id,
                 "nombre": nom_alm,
                 "piezas": pzas,
                 "empresa": "BC",
-                "comprometidas": 1 if "CEDIS" in nom_alm or "AEROPUERTO" in nom_alm else 0
+                "comprometidas": 1 if "CEDIS" in nom_alm or "AEROPUERTO" in nom_alm else 0,
+                "clasificacion": alm_clasif,
+                "emblema": alm_emb
             }
             almacenes_bc.append(item_alm)
             existencias_almacenes.append(item_alm)
@@ -1092,7 +1218,8 @@ def detalle_articulo_pos(clave):
                     a.ARTICULO_ID,
                     TRIM(ca.CLAVE_ARTICULO) AS CLAVE,
                     TRIM(a.NOMBRE) AS NOMBRE,
-                    {precio_eq_expr} AS PRECIO
+                    {precio_eq_expr} AS PRECIO,
+                    COALESCE(TRIM(la.{col_clasif}), 'N/A') AS CLASIFICACION
                 FROM ARTICULOS a
                 JOIN CLAVES_ARTICULOS ca ON ca.ARTICULO_ID = a.ARTICULO_ID
                 JOIN ROLES_CLAVES_ARTICULOS r ON r.ROL_CLAVE_ART_ID = ca.ROL_CLAVE_ART_ID AND r.ES_PPAL = 'S'
@@ -1126,6 +1253,9 @@ def detalle_articulo_pos(clave):
                 eq_clv = str(r_eq[1]).strip()
                 stk_bc_eq = eq_stock_bc_map.get(eq_id, 0)
                 stk_rt_eq = int(eq_stock_rt_map.get(eq_clv.upper(), 0))
+                eq_clasif = str(r_eq[4]).strip() if (len(r_eq) > 4 and r_eq[4]) else "N/A"
+                if not eq_clasif:
+                    eq_clasif = "N/A"
                 equivalencias.append({
                     "articulo_id": eq_id,
                     "clave": eq_clv,
@@ -1133,7 +1263,8 @@ def detalle_articulo_pos(clave):
                     "precio": float(r_eq[3] or 0),
                     "stock_bc": stk_bc_eq,
                     "stock_rt": stk_rt_eq,
-                    "stock": stk_bc_eq + stk_rt_eq
+                    "stock": stk_bc_eq + stk_rt_eq,
+                    "clasificacion": eq_clasif
                 })
 
             # Ordenar equivalencias por existencia descendente (prioridad piezas con stock en BC y total)
@@ -1161,6 +1292,9 @@ def detalle_articulo_pos(clave):
                 "precio_publico": precio_pub_art,
                 "precio_taller": precio_tal_art,
                 "linea": linea_art,
+                "clasificacion": clasif_art,
+                "emblema_sucursal": emblema_suc,
+                "nombre_sucursal": nombre_suc,
                 "tiene_foto": tiene_foto,
                 "foto_url": f"/api/articulos/foto/{art_id}" if tiene_foto else None,
                 "total_piezas": total_piezas,
