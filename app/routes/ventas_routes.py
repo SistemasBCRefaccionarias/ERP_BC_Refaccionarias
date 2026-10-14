@@ -669,12 +669,20 @@ def get_reporte_ventas_perdidas():
                 "id": r[0],
                 "fecha": r[1],
                 "sucursal": r[2] or "Mostrador",
+                "sucursal_id": r[2] or "Mostrador",
+                "sucursal_nombre": r[2] or "Mostrador",
                 "vendedor": r[3] or "-",
+                "vendedor_id": r[3] or "-",
+                "vendedor_nombre": r[3] or "-",
                 "cliente": r[4] or "Público General",
+                "cliente_nombre": r[4] or "Público General",
                 "clave": r[5],
+                "clave_articulo": r[5],
                 "articulo": r[6],
+                "articulo_nombre": r[6],
                 "cantidad": cant,
                 "precio": prec,
+                "precio_estimado": prec,
                 "importe_estimado": imp,
                 "motivo": r[9],
                 "notas": r[10] or "",
@@ -693,13 +701,23 @@ def get_reporte_ventas_perdidas():
 
         conn.close()
 
+        por_motivo = {r["motivo"]: r["conteo"] for r in resumen_motivos}
+        resumen = {
+            "total_registros": len(items),
+            "total_piezas": total_pzas,
+            "total_importe": total_importe,
+            "por_motivo": por_motivo
+        }
+
         return jsonify({
             "success": True,
             "total_registros": len(items),
             "total_piezas": total_pzas,
             "total_importe_estimado": total_importe,
             "resumen_motivos": resumen_motivos,
-            "registros": items
+            "resumen": resumen,
+            "registros": items,
+            "ventas_perdidas": items
         })
     except Exception as e:
         if conn:

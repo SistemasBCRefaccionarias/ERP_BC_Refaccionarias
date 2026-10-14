@@ -1133,9 +1133,6 @@
                                     <button type="button" onclick="pvAbrirModalVentaPerdida()" class="py-2.5 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-black text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-2xs" title="Registrar motivo de venta perdida para Compras">
                                         <span>❌</span> Pérdida
                                     </button>
-                                    <a href="/facturacion" target="_blank" class="py-2.5 px-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-black text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-2xs" title="Abrir portal de autofacturación en línea">
-                                        <span>🌐</span> Facturar
-                                    </a>
                                 </div>
                             </div>
 
@@ -1374,6 +1371,183 @@
                         <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
                             <span class="text-[11px] text-slate-400 font-medium">Las solicitudes aprobadas serán programadas para envío por Almacén CEDIS.</span>
                             <button type="button" onclick="pvCerrarModalMisSolicitudes()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer">
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= MODAL REGISTRAR VENTA PERDIDA (DEMANDA INSATISFECHA PARA COMPRAS) ================= -->
+                <div id="modalRegistrarVentaPerdida" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+                    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-scale-in">
+                        <!-- Header -->
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center text-xl shadow-xs">
+                                    ❌
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-black text-slate-900">Registrar Venta Perdida</h3>
+                                    <p class="text-[11px] text-slate-500 font-medium">Se enviará a Compras para análisis de resurtido y demanda</p>
+                                </div>
+                            </div>
+                            <button type="button" onclick="pvCerrarModalVentaPerdida()" class="text-slate-400 hover:text-slate-700 text-xl font-black cursor-pointer">&times;</button>
+                        </div>
+
+                        <!-- Formulario -->
+                        <form id="formRegistrarVentaPerdida" onsubmit="pvGuardarVentaPerdida(event)" class="space-y-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div class="sm:col-span-2">
+                                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                                        Clave / Código del Artículo *
+                                    </label>
+                                    <input type="text" id="vpClaveArticulo" required placeholder="Ej. GP-48, WP-CR7165..."
+                                           class="w-full text-xs font-mono font-black text-slate-900 bg-white border border-slate-300 rounded-xl px-3 py-2 uppercase focus:ring-2 focus:ring-rose-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                                        Cantidad *
+                                    </label>
+                                    <input type="number" id="vpCantidad" min="1" step="1" value="1" required
+                                           class="w-full text-xs font-black text-center text-slate-900 bg-white border border-slate-300 rounded-xl px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:outline-none">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                                    Descripción o Aplicación
+                                </label>
+                                <input type="text" id="vpArticuloNombre" placeholder="Ej. Acumulador 12V 48 ó Amortiguador Trasero..."
+                                       class="w-full text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-xl px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:outline-none">
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                                        Motivo de la Pérdida *
+                                    </label>
+                                    <select id="vpMotivo" required class="w-full text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-xl px-2.5 py-2 focus:ring-2 focus:ring-rose-500 focus:outline-none">
+                                        <option value="SIN_EXISTENCIA">Sin existencia en sucursal ni CEDIS</option>
+                                        <option value="PRECIO_ALTO">Precio muy alto / Competencia más barata</option>
+                                        <option value="TIEMPO_ENTREGA">Tiempo de entrega / Traslado muy tardado</option>
+                                        <option value="NO_MANEJAMOS">No manejamos la marca o aplicación</option>
+                                        <option value="CLIENTE_LO_PENSARA">Cliente lo va a pensar / Consulta</option>
+                                        <option value="OTRO">Otro motivo (especificar en notas)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                                        Precio Estimado / Cotizado
+                                    </label>
+                                    <input type="number" id="vpPrecioEstimado" min="0" step="0.01" placeholder="0.00"
+                                           class="w-full text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-xl px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:outline-none">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                                    Notas y Observaciones
+                                </label>
+                                <textarea id="vpNotas" rows="2" placeholder="Marca que pedía el cliente, precio que le daban en la competencia, vehículo, etc."
+                                          class="w-full text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-rose-500 focus:outline-none"></textarea>
+                            </div>
+
+                            <div class="pt-2 flex items-center justify-end gap-2">
+                                <button type="button" onclick="pvCerrarModalVentaPerdida()"
+                                        class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer">
+                                    Cancelar
+                                </button>
+                                <button type="submit" id="btnGuardarVentaPerdida"
+                                        class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow-md shadow-rose-600/20 cursor-pointer flex items-center gap-1.5">
+                                    <span>📢</span>
+                                    <span>Enviar Reporte a Compras</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- ================= MODAL REPORTE DE VENTAS PERDIDAS PARA COMPRAS ================= -->
+                <div id="modalReporteVentasPerdidasCompras" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+                    <div class="bg-white rounded-3xl max-w-5xl w-full p-5 shadow-2xl border border-slate-200 max-h-[92vh] flex flex-col space-y-4 animate-scale-in">
+                        <!-- Header -->
+                        <div class="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center text-xl shadow-xs">
+                                    📢
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-black text-slate-900">Reporte de Ventas Perdidas (Demanda Insatisfecha)</h3>
+                                    <p class="text-[11px] text-slate-500 font-medium">Refacciones solicitadas en mostrador que no pudieron concretarse</p>
+                                </div>
+                            </div>
+                            <button type="button" onclick="cerrarReporteVentasPerdidasCompras()" class="text-slate-400 hover:text-slate-700 text-xl font-black cursor-pointer">&times;</button>
+                        </div>
+
+                        <!-- KPIs -->
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                                <div class="text-[9px] font-extrabold uppercase text-slate-400">Total Solicitudes</div>
+                                <div id="vpKpiTotalRegistros" class="text-lg font-black text-slate-900 mt-0.5">0</div>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                                <div class="text-[9px] font-extrabold uppercase text-slate-400">Piezas No Surtidas</div>
+                                <div id="vpKpiTotalPzas" class="text-lg font-black text-indigo-700 mt-0.5">0 pzas</div>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                                <div class="text-[9px] font-extrabold uppercase text-slate-400">Importe Estimado</div>
+                                <div id="vpKpiTotalImporte" class="text-lg font-black text-emerald-700 mt-0.5">$0.00</div>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                                <div class="text-[9px] font-extrabold uppercase text-slate-400">Motivo Principal</div>
+                                <div id="vpKpiMotivoTop" class="text-xs font-black text-rose-700 truncate mt-1">Sin registros</div>
+                            </div>
+                        </div>
+
+                        <!-- Filtros -->
+                        <div class="flex flex-col sm:flex-row items-center gap-2 justify-between">
+                            <div class="flex items-center gap-2 w-full sm:w-auto flex-1">
+                                <input type="text" id="vpFiltroBusqueda" oninput="filtrarTablaVentasPerdidas()" placeholder="Buscar por clave, descripción, sucursal..."
+                                       class="w-full text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:bg-white focus:outline-none">
+                                <select id="vpFiltroMotivo" onchange="filtrarTablaVentasPerdidas()" class="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:outline-none">
+                                    <option value="">Todos los motivos</option>
+                                    <option value="SIN_EXISTENCIA">Sin existencia</option>
+                                    <option value="PRECIO_ALTO">Precio muy alto</option>
+                                    <option value="TIEMPO_ENTREGA">Tiempo de entrega</option>
+                                    <option value="NO_MANEJAMOS">No manejamos marca</option>
+                                    <option value="CLIENTE_LO_PENSARA">Cliente lo pensará</option>
+                                </select>
+                            </div>
+                            <span id="vpConteoFiltrados" class="text-[11px] font-bold text-slate-400 whitespace-nowrap">0 registros mostrados</span>
+                        </div>
+
+                        <!-- Tabla -->
+                        <div class="overflow-y-auto flex-1 border border-slate-200 rounded-2xl">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="sticky top-0 bg-slate-100 border-b border-slate-200 text-slate-500 font-bold uppercase text-[9px] tracking-wider z-10">
+                                    <tr>
+                                        <th class="p-3">Fecha</th>
+                                        <th class="p-3">Sucursal</th>
+                                        <th class="p-3">Clave</th>
+                                        <th class="p-3">Descripción</th>
+                                        <th class="p-3 text-right">Cant.</th>
+                                        <th class="p-3 text-right">P. Estimado</th>
+                                        <th class="p-3">Motivo</th>
+                                        <th class="p-3">Notas</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbodyReporteVentasPerdidas" class="divide-y divide-slate-100 bg-white">
+                                    <tr>
+                                        <td colspan="8" class="p-8 text-center text-slate-400 italic">Cargando reporte...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                            <span class="text-[11px] text-slate-400 font-medium">Datos en tiempo real para decisiones de inventario y pedidos con proveedores.</span>
+                            <button type="button" onclick="cerrarReporteVentasPerdidasCompras()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer">
                                 Cerrar
                             </button>
                         </div>

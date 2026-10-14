@@ -1979,46 +1979,393 @@ function pvCerrarModalObservaciones() {
     if (modal) modal.classList.add('hidden');
 }
 
-function pvGenerarCotizacion() {
-    if (PV_STATE.carrito.length === 0) {
-        alert("Agrega artículos para generar una cotización.");
-        return;
-    }
-    window.print();
+function pvConstruirPayloadCotizacion() {
+    const partidas = PV_STATE.carrito.map(it => ({
+        articulo_id: it.articulo_id,
+        clave: it.clave,
+        nombre: it.nombre,
+        clasificacion: it.clasificacion || '',
+        cantidad: it.cantidad,
+        precio: it.precio,
+        descuento_pct: it.descuento_pct || 0,
+        bonificacion: it.bonificacion || null
+    }));
+
+    const inpDir = document.getElementById('pvInputDireccionEnvio');
+    const dir = (inpDir ? inpDir.value.trim() : '') || PV_STATE.direccionEnvio || '';
+
+    return {
+        cliente_nombre: PV_STATE.clienteActual ? (PV_STATE.clienteActual.nombre || PV_STATE.clienteActual.label) : 'PÚBLICO EN GENERAL',
+        tipo_cliente: PV_STATE.clienteActual ? (PV_STATE.clienteActual.tipo_cliente || 'Público General') : 'Público General',
+        telefono: PV_STATE.clienteActual ? (PV_STATE.clienteActual.telefono || '') : '',
+        sucursal_nombre: PV_STATE.sucursalActualNombre || (typeof currentUser !== 'undefined' ? currentUser.sucursal_nombre : 'CEDIS Matriz'),
+        vendedor_nombre: PV_STATE.vendedorActualNombre || (typeof currentUser !== 'undefined' ? currentUser.vendedor_nombre : 'Vendedor Mostrador'),
+        tipo_entrega: PV_STATE.tipoEntrega === 'ENVIO' ? 'Envío a Domicilio' : 'Entrega en Tienda',
+        direccion_envio: PV_STATE.tipoEntrega === 'ENVIO' ? dir : '',
+        observaciones: PV_STATE.observaciones || '',
+        partidas: partidas
+    };
 }
 
-function pvEnviarCotizacionWhatsApp() {
+async function pvGenerarCotizacion() {
+    if (PV_STATE.carrito.length === 0) {
+        alert("Agrega artículos al pedido para generar una cotización.");
+        return;
+    }
+
+    const payload = pvConstruirPayloadCotizacion();
+
+    try {
+        const res = await fetch('/api/pv/cotizacion/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (!data.success) {
+            alert(`Error al generar cotización: ${data.error || 'Ocurrió un error en el servidor'}`);
+            return;
+        }
+
+        pvAbrirVentanaImpresionCotizacion(data, payload);
+    } catch (e) {
+        alert(`Error al conectar con el servidor para generar la cotización: ${e.message}`);
+    }
+}
+
+function pvAbrirVentanaImpresionCotizacion(data, payload) {
+    const ventana = window.open('', '_blank', 'width=900,height=900');
+    if (!ventana) {
+        window.open(data.pdf_url, '_blank');
+        return;
+    }
+
+    const items = payload.partidas || [];
+    let subtotalNeto = 0;
+    let ahorroTotal = 0;
+
+    const filasHtml = items.map((it, idx) => {
+        const cant = parseFloat(it.cantidad || 1);
+        const prec = parseFloat(it.precio || 0);
+        const descPct = parseFloat(it.descuento_pct || 0);
+        const impBruto = cant * prec;
+        const impDesc = impBruto * (descPct / 100);
+        const impNeto = impBruto - impDesc;
+
+        subtotalNeto += impNeto;
+        ahorroTotal += impDesc;
+
+        return `
+            <tr>
+                <td style="text-align: center; color: #64748b;">${idx + 1}</td>
+                <td style="font-family: monospace; font-weight: bold; color: #0f172a;">${it.clave}</td>
+                <td>
+                    <div style="font-weight: 600; color: #1e293b;">${it.nombre}</div>
+                    ${it.bonificacion ? '<div style="font-size: 10px; color: #047857; font-weight: bold;">✓ Bonificación de casco aplicable (-$' + it.bonificacion.monto + ')</div>' : ''}
+                </td>
+                <td style="text-align: center;">${it.clasificacion ? `<span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">${it.clasificacion}</span>` : '-'}</td>
+                <td style="text-align: center; font-weight: bold;">${cant}</td>
+                <td style="text-align: right;">${formatearMoneda(prec)}</td>
+                <td style="text-align: right;">${descPct > 0 ? descPct + '%' : '-'}</td>
+                <td style="text-align: right; font-weight: bold; color: #0f172a;">${formatearMoneda(impNeto)}</td>
+            </tr>
+        `;
+    }).join('');
+
+    const totalFinal = data.total || subtotalNeto;
+    const ivaVal = totalFinal - (totalFinal / 1.16);
+    const subSinIva = totalFinal - ivaVal;
+
+    ventana.document.write(`
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <title>Cotización ${data.folio} - BC Refaccionarias</title>
+            <style>
+                @page { size: letter; margin: 12mm 15mm; }
+                * { box-sizing: border-box; }
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+                    margin: 0;
+                    padding: 24px;
+                    background: #f1f5f9;
+                    color: #1e293b;
+                    font-size: 12px;
+                }
+                .sheet {
+                    background: #ffffff;
+                    max-width: 820px;
+                    margin: 0 auto;
+                    padding: 32px;
+                    border-radius: 16px;
+                    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+                    border: 1px solid #e2e8f0;
+                }
+                .no-print {
+                    max-width: 820px;
+                    margin: 0 auto 16px auto;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    background: #ffffff;
+                    padding: 12px 20px;
+                    border-radius: 12px;
+                    border: 1px solid #e2e8f0;
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+                }
+                .btn {
+                    padding: 9px 16px;
+                    font-weight: 700;
+                    font-size: 12px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    border: none;
+                    text-decoration: none;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    transition: all 0.15s ease;
+                }
+                .btn-print { background: #0284c7; color: #fff; }
+                .btn-print:hover { background: #0369a1; }
+                .btn-pdf { background: #047857; color: #fff; }
+                .btn-pdf:hover { background: #065f46; }
+                .btn-close { background: #64748b; color: #fff; }
+                .btn-close:hover { background: #475569; }
+
+                .header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    border-bottom: 2px solid #0284c7;
+                    padding-bottom: 16px;
+                    margin-bottom: 18px;
+                }
+                .company-title { font-size: 22px; font-weight: 900; color: #0f172a; margin: 0; }
+                .company-sub { font-size: 11px; color: #64748b; margin-top: 4px; line-height: 1.4; }
+                .quote-header-right { text-align: right; }
+                .quote-badge { font-size: 16px; font-weight: 900; color: #0284c7; margin-bottom: 4px; }
+                .quote-meta { font-size: 11px; color: #475569; line-height: 1.4; }
+
+                .meta-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 16px;
+                    margin-bottom: 20px;
+                }
+                .meta-card {
+                    background: #f8fafc;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 10px;
+                    padding: 12px 14px;
+                    font-size: 11.5px;
+                    line-height: 1.6;
+                }
+                .meta-card-title {
+                    font-weight: 800;
+                    text-transform: uppercase;
+                    font-size: 10px;
+                    color: #475569;
+                    margin-bottom: 6px;
+                    border-bottom: 1px solid #e2e8f0;
+                    padding-bottom: 4px;
+                    letter-spacing: 0.5px;
+                }
+
+                table.items-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 11px;
+                    margin-bottom: 18px;
+                }
+                table.items-table th {
+                    background: #1e293b;
+                    color: #ffffff;
+                    text-align: left;
+                    padding: 8px 10px;
+                    font-weight: 700;
+                    font-size: 10px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+                table.items-table td {
+                    padding: 7px 10px;
+                    border-bottom: 1px solid #e2e8f0;
+                }
+                table.items-table tr:nth-child(even) td {
+                    background: #f8fafc;
+                }
+
+                .totals-section {
+                    display: grid;
+                    grid-template-columns: 1.4fr 1fr;
+                    gap: 20px;
+                    margin-top: 10px;
+                    align-items: start;
+                }
+                .terms {
+                    font-size: 10px;
+                    color: #475569;
+                    line-height: 1.5;
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 10px;
+                    padding: 12px 14px;
+                }
+                .totals-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 11.5px;
+                }
+                .totals-table td {
+                    padding: 5px 8px;
+                }
+                .totals-table tr.total-row td {
+                    font-size: 15px;
+                    font-weight: 900;
+                    color: #047857;
+                    border-top: 2px solid #047857;
+                    padding-top: 8px;
+                }
+
+                @media print {
+                    body {
+                        background: #ffffff !important;
+                        padding: 0 !important;
+                    }
+                    .sheet {
+                        box-shadow: none !important;
+                        border: none !important;
+                        padding: 0 !important;
+                        max-width: 100% !important;
+                    }
+                    .no-print {
+                        display: none !important;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="no-print">
+                <div style="font-weight: 800; font-size: 13px; color: #0f172a;">
+                    📄 Cotización <span style="color: #0284c7;">${data.folio}</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-print" onclick="window.print()">🖨️ Imprimir</button>
+                    <a class="btn btn-pdf" href="${data.pdf_url}" target="_blank" download>📥 Descargar PDF</a>
+                    <button class="btn btn-close" onclick="window.close()">✕ Cerrar</button>
+                </div>
+            </div>
+
+            <div class="sheet">
+                <div class="header">
+                    <div>
+                        <h1 class="company-title">BC REFACCIONARIAS</h1>
+                        <div class="company-sub">
+                            <strong>Baterías y Componentes de La Laguna S.A. de C.V.</strong><br>
+                            Especialistas en Baterías, Suspensión y Refacciones Automotrices<br>
+                            Torreón, Coahuila &bull; Gómez Palacio, Dgo.
+                        </div>
+                    </div>
+                    <div class="quote-header-right">
+                        <div class="quote-badge">COTIZACIÓN FORMAL</div>
+                        <div class="quote-meta">
+                            <strong>Folio:</strong> ${data.folio}<br>
+                            <strong>Fecha:</strong> ${payload.fecha || new Date().toLocaleString('es-MX')}<br>
+                            <strong>Vigencia:</strong> 5 días hábiles
+                        </div>
+                    </div>
+                </div>
+
+                <div class="meta-grid">
+                    <div class="meta-card">
+                        <div class="meta-card-title">Datos del Cliente</div>
+                        <div><strong>Cliente:</strong> ${payload.cliente_nombre}</div>
+                        <div><strong>Lista de Precios:</strong> ${payload.tipo_cliente}</div>
+                        <div><strong>Teléfono:</strong> ${payload.telefono || 'Mostrador'}</div>
+                        <div><strong>Modalidad:</strong> ${payload.tipo_entrega}</div>
+                        ${payload.direccion_envio ? `<div><strong>Dirección de Entrega:</strong> ${payload.direccion_envio}</div>` : ''}
+                    </div>
+                    <div class="meta-card">
+                        <div class="meta-card-title">Datos de Atención y Sucursal</div>
+                        <div><strong>Sucursal:</strong> ${payload.sucursal_nombre}</div>
+                        <div><strong>Atendido por:</strong> ${payload.vendedor_nombre}</div>
+                        <div><strong>Moneda:</strong> Pesos Mexicanos (MXN)</div>
+                        <div><strong>Estatus:</strong> Cotización Informativa</div>
+                    </div>
+                </div>
+
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 25px; text-align: center;">#</th>
+                            <th style="width: 90px;">Clave</th>
+                            <th>Descripción</th>
+                            <th style="width: 50px; text-align: center;">Clasif</th>
+                            <th style="width: 45px; text-align: center;">Cant</th>
+                            <th style="width: 85px; text-align: right;">P. Unitario</th>
+                            <th style="width: 55px; text-align: right;">Desc</th>
+                            <th style="width: 95px; text-align: right;">Importe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filasHtml}
+                    </tbody>
+                </table>
+
+                <div class="totals-section">
+                    <div class="terms">
+                        <strong>Términos y Condiciones:</strong><br>
+                        &bull; Precios expresados en Moneda Nacional con IVA (16%) incluido.<br>
+                        &bull; Cotización válida por 5 días hábiles sujeta a existencias físicas al momento del pago.<br>
+                        &bull; No representa apartado de mercancía ni compromiso de reserva.<br>
+                        &bull; Para compras por WhatsApp o entrega a domicilio, contáctanos indicando este folio.<br>
+                        ${payload.observaciones ? `<div style="margin-top: 6px; font-style: italic; color: #1e293b;"><strong>Observaciones:</strong> ${payload.observaciones}</div>` : ''}
+                    </div>
+                    <div>
+                        <table class="totals-table">
+                            <tr>
+                                <td style="color: #64748b;">Subtotal sin IVA:</td>
+                                <td style="text-align: right; font-weight: 600;">${formatearMoneda(subSinIva)}</td>
+                            </tr>
+                            ${ahorroTotal > 0 ? `
+                            <tr>
+                                <td style="color: #047857;">Ahorro / Descuento:</td>
+                                <td style="text-align: right; font-weight: 600; color: #047857;">-${formatearMoneda(ahorroTotal)}</td>
+                            </tr>` : ''}
+                            <tr>
+                                <td style="color: #64748b;">IVA (16%):</td>
+                                <td style="text-align: right; font-weight: 600;">${formatearMoneda(ivaVal)}</td>
+                            </tr>
+                            <tr class="total-row">
+                                <td>TOTAL:</td>
+                                <td style="text-align: right;">${formatearMoneda(totalFinal)}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                window.addEventListener('load', () => {
+                    setTimeout(() => {
+                        window.print();
+                    }, 500);
+                });
+            </script>
+        </body>
+        </html>
+    `);
+    ventana.document.close();
+}
+
+async function pvEnviarCotizacionWhatsApp() {
     if (PV_STATE.carrito.length === 0) {
         alert("Agrega artículos al pedido antes de enviar la cotización por WhatsApp.");
         return;
     }
-
-    const clienteNom = PV_STATE.clienteActual ? (PV_STATE.clienteActual.nombre || PV_STATE.clienteActual.label) : 'Cliente Mostrador';
-    const fechaHoy = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    
-    let subtotal = 0;
-    let itemsTexto = '';
-    PV_STATE.carrito.forEach((it, idx) => {
-        const sub = it.cantidad * it.precio;
-        subtotal += sub;
-        itemsTexto += `${idx + 1}. *${it.clave}* - ${it.nombre}\n   Cant: ${it.cantidad} pza(s) | P.U: ${formatearMoneda(it.precio)} | Importe: ${formatearMoneda(sub)}\n`;
-    });
-
-    const iva = subtotal * 0.16;
-    const total = subtotal + iva;
-    const modEntrega = PV_STATE.tipoEntrega === 'ENVIO' ? '🚚 Envío a Domicilio' : '🏬 Entrega en Tienda';
-
-    let msj = `🛒 *COTIZACIÓN DE REFACCIONES - BC REFACCIONARIAS*\n`;
-    msj += `📅 *Fecha:* ${fechaHoy}\n`;
-    msj += `👤 *Cliente:* ${clienteNom}\n`;
-    msj += `📍 *Modalidad:* ${modEntrega}\n\n`;
-    msj += `*Detalle de Refacciones:*\n`;
-    msj += `${itemsTexto}\n`;
-    msj += `─────────────────────────\n`;
-    msj += `💵 *Subtotal:* ${formatearMoneda(subtotal)}\n`;
-    msj += `🧾 *IVA (16%):* ${formatearMoneda(iva)}\n`;
-    msj += `💰 *TOTAL:* ${formatearMoneda(total)}\n\n`;
-    msj += `⚠️ *Precios con IVA incluido sujetos a cambio sin previo aviso.*`;
 
     let telDefault = (PV_STATE.clienteActual?.telefono || '').replace(/\D/g, '');
     let tel = prompt("Ingresa el número de WhatsApp (10 dígitos) del cliente:", telDefault);
@@ -2028,8 +2375,61 @@ function pvEnviarCotizacionWhatsApp() {
         tel = '52' + tel;
     }
 
-    const url = `https://api.whatsapp.com/send?phone=${tel}&text=${encodeURIComponent(msj)}`;
-    window.open(url, '_blank');
+    const payload = pvConstruirPayloadCotizacion();
+
+    try {
+        const res = await fetch('/api/pv/cotizacion/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (!data.success) {
+            alert(`Error al generar el PDF de cotización: ${data.error || 'Ocurrió un error'}`);
+            return;
+        }
+
+        // 1. Descarga automática local del PDF para que el vendedor lo tenga a la mano
+        try {
+            const dlLink = document.createElement('a');
+            dlLink.href = data.pdf_url;
+            dlLink.download = data.filename;
+            document.body.appendChild(dlLink);
+            dlLink.click();
+            document.body.removeChild(dlLink);
+        } catch (dlErr) {
+            console.warn("Descarga automática omitida:", dlErr);
+        }
+
+        // 2. Construir URL completa del PDF y mensaje
+        const pdfFullUrl = window.location.origin + data.pdf_url;
+        const fechaHoy = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        let resumenItems = '';
+        PV_STATE.carrito.forEach((it, idx) => {
+            const sub = it.cantidad * it.precio;
+            resumenItems += `${idx + 1}. *${it.clave}* - ${it.nombre}\n   Cant: ${it.cantidad} pza(s) | P.U: ${formatearMoneda(it.precio)} | Importe: ${formatearMoneda(sub)}\n`;
+        });
+
+        let msj = `📄 *COTIZACIÓN FORMAL - BC REFACCIONARIAS*\n`;
+        msj += `🔖 *Folio:* ${data.folio}\n`;
+        msj += `📅 *Fecha:* ${fechaHoy}\n`;
+        msj += `👤 *Cliente:* ${payload.cliente_nombre}\n`;
+        msj += `📍 *Modalidad:* ${payload.tipo_entrega}\n\n`;
+        msj += `📥 *Descarga tu Cotización Formal en PDF aquí:*\n`;
+        msj += `${pdfFullUrl}\n\n`;
+        msj += `*Detalle de Refacciones:*\n`;
+        msj += `${resumenItems}`;
+        msj += `─────────────────────────\n`;
+        msj += `💰 *TOTAL: ${formatearMoneda(data.total)}*\n\n`;
+        msj += `⚠️ *Precios con IVA incluido válidos por 5 días hábiles sujeta a existencias físicas.*`;
+
+        const waUrl = `https://api.whatsapp.com/send?phone=${tel}&text=${encodeURIComponent(msj)}`;
+        window.open(waUrl, '_blank');
+    } catch (e) {
+        alert(`Error al generar la cotización en PDF: ${e.message}`);
+    }
 }
 
 // ================= SOLICITUDES DE TRASPASO A CEDIS (VALIDADAS POR COMPRAS) =================
@@ -2295,18 +2695,33 @@ function pvAbrirModalVentaPerdida() {
     const modal = document.getElementById('modalRegistrarVentaPerdida');
     if (!modal) return;
 
-    // Si hay un artículo en mostrador, prellenar los campos
-    const art = PV_STATE.articuloModalActual;
+    // Si hay un artículo en modal actual, o en mostrador, o único en carrito
+    let art = PV_STATE.articuloModalActual || PV_STATE.articuloMostradorActivo;
+    if (!art && PV_STATE.carrito.length === 1) {
+        art = PV_STATE.carrito[0];
+    }
+
     const inpClave = document.getElementById('vpClaveArticulo');
     const inpNom = document.getElementById('vpArticuloNombre');
     const inpPrec = document.getElementById('vpPrecioEstimado');
+    const inpCant = document.getElementById('vpCantidad');
+    const inpMotivo = document.getElementById('vpMotivo');
+    const inpNotas = document.getElementById('vpNotas');
 
-    if (inpClave) inpClave.value = art ? art.clave : '';
-    if (inpNom) inpNom.value = art ? art.nombre : '';
-    if (inpPrec) inpPrec.value = art ? (parseFloat(art.precio) || 0) : '';
+    const busquedaActual = (document.getElementById('pvInputBusquedaArticulo')?.value || '').trim();
+
+    if (inpClave) inpClave.value = art ? art.clave : (busquedaActual || '');
+    if (inpNom) inpNom.value = art ? (art.nombre || '') : '';
+    if (inpPrec) inpPrec.value = art ? (parseFloat(art.precio || art.precio_publico) || 0) : '';
+    if (inpCant) inpCant.value = art ? (art.cantidad || 1) : 1;
+    if (inpMotivo) inpMotivo.value = 'SIN_EXISTENCIA';
+    if (inpNotas) inpNotas.value = '';
 
     modal.classList.remove('hidden');
-    if (inpClave && !inpClave.value) inpClave.focus();
+    if (inpClave) {
+        if (!inpClave.value) inpClave.focus();
+        else inpClave.select();
+    }
 }
 
 function pvCerrarModalVentaPerdida() {

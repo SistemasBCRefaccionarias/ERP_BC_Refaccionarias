@@ -1776,3 +1776,41 @@ def mis_solicitudes_traspasos():
 
     return jsonify({"success": True, "solicitudes": solicitudes})
 
+# ================= COTIZACIONES FORMALES EN PDF =================
+
+@pv_bp.route('/api/pv/cotizacion/pdf', methods=['POST'])
+def generar_cotizacion_pdf():
+    try:
+        import os
+        import datetime
+        from app.services.cotizacion_pdf_service import generar_pdf_cotizacion
+
+        data = request.get_json() or {}
+        partidas = data.get('partidas', [])
+        if not partidas:
+            return jsonify({"success": False, "error": "No hay partidas para cotizar"}), 400
+
+        now_dt = datetime.datetime.now()
+        folio = data.get('folio') or f"COT-{now_dt.strftime('%Y%m%d-%H%M%S')}"
+        data['folio'] = folio
+        data['fecha'] = data.get('fecha') or now_dt.strftime('%Y-%m-%d %H:%M')
+
+        filename = f"{folio}.pdf".replace(" ", "_").replace("/", "_").replace("\\", "_")
+        static_dir = os.path.join(os.getcwd(), 'static', 'cotizaciones')
+        os.makedirs(static_dir, exist_ok=True)
+        pdf_path = os.path.join(static_dir, filename)
+
+        total = generar_pdf_cotizacion(data, pdf_path)
+
+        pdf_url = f"/static/cotizaciones/{filename}"
+        return jsonify({
+            "success": True,
+            "folio": folio,
+            "filename": filename,
+            "pdf_url": pdf_url,
+            "total": total
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
