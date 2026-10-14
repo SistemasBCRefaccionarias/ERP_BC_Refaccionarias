@@ -563,7 +563,7 @@
                         }
                     }
 
-                    // Guardar para posible reimpresión
+                    // Guardar para posible reimpresión manual si se requiere
                     ultimoTraspasoParaTicket = {
                         folio: folioFinal,
                         origen: nomOri,
@@ -574,20 +574,64 @@
                         partidas: [...listaPartidas]
                     };
 
-                    document.getElementById('ticketModal').classList.remove('hidden');
-                    setTimeout(() => {
-                        const btnCerrar = document.getElementById('btnCerrarTicketModal');
-                        if (btnCerrar) btnCerrar.focus();
-                    }, 80);
+                    // Incidencia 3: NO abrir modal automáticamente para no congelar ni atrapar la pantalla/mouse.
+                    document.getElementById('ticketModal')?.classList.add('hidden');
                 } else {
                     // Traspaso de Sucursal a Sucursal o de Sucursal a CEDIS:
-                    // NO se imprime ticket, únicamente se entrega el folio
                     document.getElementById('modalFolioSoloNumero').textContent = data.folio || folio;
                     document.getElementById('modalFolioSoloOrigen').textContent = nomOri;
                     document.getElementById('modalFolioSoloDestino').textContent = nomDes;
                     document.getElementById('modalFolioSoloTotal').textContent = `${partidasTraspaso.length} partida(s) (${totalPiezas} piezas)`;
-                    document.getElementById('modalFolioSolo').classList.remove('hidden');
+                    
+                    // Mantener modal oculto
+                    document.getElementById('modalFolioSolo')?.classList.add('hidden');
                 }
+
+                // Mostrar botón de consultar ticket si existe último traspaso
+                const btnVerTicket = document.getElementById('btnVerUltimoTicket');
+                if (btnVerTicket) {
+                    btnVerTicket.classList.remove('hidden');
+                    btnVerTicket.textContent = `📄 Ticket Folio: ${folioFinal}`;
+                }
+
+                // Banner inline temporal en la vista de traspasos (desaparece en 6.5s)
+                const banner = document.getElementById('bannerTraspasoExito');
+                if (banner) {
+                    const ticketTextoBanner = impInfo.ejecutada 
+                        ? '<span class="text-emerald-700 font-bold ml-1.5">• Ticket impreso en POS-80C</span>' 
+                        : (debeImprimirTicket ? `<span class="text-amber-700 font-semibold ml-1.5">• Impresora: ${impInfo.mensaje || 'Compruebe conexión POS-80C'}</span>` : '');
+                    
+                    banner.innerHTML = `
+                        <div class="flex items-center justify-between gap-3 p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-950 rounded-2xl shadow-sm">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xl">✅</span>
+                                <div>
+                                    <div class="font-black text-sm">Listo: Traspaso generado con éxito</div>
+                                    <div class="text-xs text-emerald-900 font-medium">
+                                        Folio: <strong class="font-mono text-sm bg-emerald-200/90 text-emerald-950 px-1.5 py-0.5 rounded shadow-2xs">${folioFinal}</strong> 
+                                        • ${nomOri} ➔ ${nomDes} • ${partidasTraspaso.length} partida(s) (${totalPiezas} piezas)
+                                        ${ticketTextoBanner}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="abrirModalUltimoTicket()" class="px-2.5 py-1 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer">Ver Ticket</button>
+                                <button type="button" onclick="this.closest('#bannerTraspasoExito').classList.add('hidden')" class="text-emerald-700 hover:text-emerald-950 font-bold text-sm px-1.5 cursor-pointer">✕</button>
+                            </div>
+                        </div>
+                    `;
+                    banner.classList.remove('hidden');
+                    if (window._timerBannerTraspaso) clearTimeout(window._timerBannerTraspaso);
+                    window._timerBannerTraspaso = setTimeout(() => {
+                        if (banner) banner.classList.add('hidden');
+                    }, 6500);
+                }
+
+                // Notificación flotante global que se retira sola
+                const msgNotif = impInfo.ejecutada 
+                    ? ' • Ticket enviado a POS-80C' 
+                    : (debeImprimirTicket ? ` • Impresora: ${impInfo.mensaje || 'Sin conectar'}` : '');
+                mostrarAlerta('success', `<strong>Listo: Traspaso generado con éxito</strong> — Folio: <span class="font-mono font-black text-base bg-emerald-100 text-emerald-950 px-2 py-0.5 rounded ml-1">${folioFinal}</span> (${nomOri} ➔ ${nomDes})${msgNotif}`, 6000);
 
                 partidasTraspaso = [];
                 renderTablaTraspasos();
@@ -611,13 +655,21 @@
             }
         });
 
+        window.abrirModalUltimoTicket = function() {
+            if (!ultimoTraspasoParaTicket) {
+                mostrarAlerta('warn', 'No hay ningún ticket reciente disponible.');
+                return;
+            }
+            document.getElementById('ticketModal')?.classList.remove('hidden');
+        };
+
         window.cerrarTicketModal = function() {
-            document.getElementById('ticketModal').classList.add('hidden');
+            document.getElementById('ticketModal')?.classList.add('hidden');
             actualizarFolioSugerido();
         };
 
         window.cerrarModalFolioSolo = function() {
-            document.getElementById('modalFolioSolo').classList.add('hidden');
+            document.getElementById('modalFolioSolo')?.classList.add('hidden');
             actualizarFolioSugerido();
         };
 

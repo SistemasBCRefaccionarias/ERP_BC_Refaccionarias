@@ -1047,6 +1047,13 @@
                     }
                 }
 
+                let traspasoAlmsHtml = '';
+                if (esAdmin || !u.almacenes_traspasos || !u.almacenes_traspasos.length) {
+                    traspasoAlmsHtml = `<div class="mt-1 text-[10px] text-slate-500 font-medium flex items-center gap-1"><span>🏬</span> <span class="text-slate-400">Traspasos:</span> <span class="font-bold text-slate-700">${esAdmin ? 'Todos los activos' : 'Todos / Matriz'}</span></div>`;
+                } else {
+                    traspasoAlmsHtml = `<div class="mt-1 text-[10px] text-blue-700 font-medium flex items-center gap-1"><span>🏬</span> <span class="text-slate-400">Traspasos:</span> <span class="font-bold px-1.5 py-0.2 bg-blue-50 text-blue-800 rounded border border-blue-200">${u.almacenes_traspasos.length} almacenes autorizados</span></div>`;
+                }
+
                 const badgeRol = u.rol === 'ADMIN'
                     ? `<span class="px-2 py-0.5 bg-purple-100 text-purple-800 rounded-lg text-[10px] font-black border border-purple-200">ADMIN</span>`
                     : (u.rol === 'VENDEDOR_SUCURSAL'
@@ -1083,7 +1090,7 @@
                         <td class="p-3 font-semibold text-slate-800">${u.nombre}</td>
                         <td class="p-3">${badgeRol}</td>
                         <td class="p-3">${sucursalHtml}</td>
-                        <td class="p-3">${pillsHtml}</td>
+                        <td class="p-3">${pillsHtml}${traspasoAlmsHtml}</td>
                         <td class="p-3 text-center">${badgeActivo}</td>
                         <td class="p-3 text-center text-[10px] text-slate-400 font-medium">
                             ${u.ultimo_login || '<span class="italic text-slate-300">Nunca</span>'}
@@ -1134,6 +1141,96 @@
         }
 
         let catalogoSucursalesVendedoresCache = null;
+        let catalogoTodosAlmacenesCache = null;
+
+        async function cargarCatalogoTodosAlmacenes() {
+            if (catalogoTodosAlmacenesCache && catalogoTodosAlmacenesCache.length) return catalogoTodosAlmacenesCache;
+            try {
+                const res = await fetch('/api/traspasos/catalogos?todos=1');
+                const data = await res.json();
+                catalogoTodosAlmacenesCache = data.almacenes || [];
+                return catalogoTodosAlmacenesCache;
+            } catch (e) {
+                console.error("Error al cargar todos los almacenes:", e);
+                return [];
+            }
+        }
+
+        function renderizarAlmacenesEnModal(almacenesSeleccionados = []) {
+            const contenedor = document.getElementById('contenedorAlmacenesUsuario');
+            if (!contenedor) return;
+
+            if (!catalogoTodosAlmacenesCache || !catalogoTodosAlmacenesCache.length) {
+                contenedor.innerHTML = '<div class="col-span-full py-4 text-center text-xs text-slate-400">No se encontraron almacenes.</div>';
+                return;
+            }
+
+            const selSet = new Set((almacenesSeleccionados || []).map(x => parseInt(x)));
+
+            contenedor.innerHTML = catalogoTodosAlmacenesCache.map(a => {
+                const checkeado = selSet.has(a.id);
+                const esInactivo = !!a.inactivo;
+                const esCedis = a.nombre.toUpperCase().includes('CEDIS');
+
+                let bgClase = 'bg-white border-slate-200 hover:border-blue-400';
+                let badgeExtra = '';
+                if (esInactivo) {
+                    bgClase = 'bg-amber-50/70 border-amber-200/80 text-slate-400';
+                    badgeExtra = '<span class="px-1.5 py-0.2 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">No utilizar</span>';
+                } else if (esCedis) {
+                    bgClase = 'bg-blue-50/70 border-blue-200 text-blue-900 font-bold';
+                    badgeExtra = '<span class="px-1.5 py-0.2 bg-blue-100 text-blue-800 text-[9px] font-black rounded">CEDIS</span>';
+                }
+
+                return `
+                    <label class="flex items-center gap-2 p-2 rounded-xl border ${bgClase} transition select-none cursor-pointer text-xs">
+                        <input type="checkbox" value="${a.id}" data-inactivo="${esInactivo ? '1' : '0'}" data-nombre="${a.nombre.toUpperCase()}" 
+                            ${checkeado ? 'checked' : ''} onchange="actualizarBadgeConteoAlmacenes()"
+                            class="chk-almacen-traspaso w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500">
+                        <span class="flex-1 truncate ${esInactivo ? 'line-through text-slate-400' : 'text-slate-800 font-medium'}">${a.nombre}</span>
+                        ${badgeExtra}
+                    </label>
+                `;
+            }).join('');
+
+            actualizarBadgeConteoAlmacenes();
+        }
+
+        function actualizarBadgeConteoAlmacenes() {
+            const chks = document.querySelectorAll('.chk-almacen-traspaso:checked');
+            const badge = document.getElementById('badgeConteoAlmacenesSeleccionados');
+            if (badge) {
+                badge.textContent = `${chks.length} seleccionados`;
+            }
+        }
+        window.actualizarBadgeConteoAlmacenes = actualizarBadgeConteoAlmacenes;
+
+        function marcarAlmacenesUsuario(criterio) {
+            const chks = document.querySelectorAll('.chk-almacen-traspaso');
+            const selSuc = document.getElementById('usuarioSucursal');
+            const sucId = selSuc && selSuc.value ? parseInt(selSuc.value) : null;
+
+            chks.forEach(chk => {
+                const esInactivo = chk.getAttribute('data-inactivo') === '1';
+                const almId = parseInt(chk.value);
+                const nom = chk.getAttribute('data-nombre') || '';
+
+                if (criterio === 'todos') {
+                    chk.checked = true;
+                } else if (criterio === 'ninguno') {
+                    chk.checked = false;
+                } else if (criterio === 'activos') {
+                    chk.checked = !esInactivo;
+                } else if (criterio === 'sucursal') {
+                    const esCedis = nom.includes('CEDIS');
+                    const esEstaSucursal = (sucId && almId === sucId);
+                    chk.checked = (esCedis || esEstaSucursal);
+                }
+            });
+
+            actualizarBadgeConteoAlmacenes();
+        }
+        window.marcarAlmacenesUsuario = marcarAlmacenesUsuario;
 
         async function cargarCatalogoSucursalesVendedores() {
             if (catalogoSucursalesVendedoresCache) return catalogoSucursalesVendedoresCache;
@@ -1188,6 +1285,11 @@
                     }
                 }
             }
+
+            const rol = document.getElementById('usuarioRol')?.value;
+            if (rol !== 'ADMIN') {
+                marcarAlmacenesUsuario('sucursal');
+            }
         }
         window.alCambiarSucursalUsuario = alCambiarSucursalUsuario;
 
@@ -1203,11 +1305,14 @@
 
             aplicarPerfilRapido('vendedor');
 
-            await cargarCatalogoSucursalesVendedores();
+            await Promise.all([cargarCatalogoSucursalesVendedores(), cargarCatalogoTodosAlmacenes()]);
             const selSuc = document.getElementById('usuarioSucursal');
             const selVen = document.getElementById('usuarioVendedor');
             if (selSuc) selSuc.value = '';
             if (selVen) selVen.value = '';
+
+            renderizarAlmacenesEnModal([]);
+            marcarAlmacenesUsuario('todos');
 
             document.getElementById('modalUsuario').classList.remove('hidden');
         }
@@ -1231,7 +1336,7 @@
             document.getElementById('usuarioActivo').checked = !!user.activo;
             document.getElementById('modalUsuarioError').classList.add('hidden');
 
-            await cargarCatalogoSucursalesVendedores();
+            await Promise.all([cargarCatalogoSucursalesVendedores(), cargarCatalogoTodosAlmacenes()]);
             const selSuc = document.getElementById('usuarioSucursal');
             const selVen = document.getElementById('usuarioVendedor');
             if (selSuc) selSuc.value = user.sucursal_id || '';
@@ -1242,6 +1347,17 @@
                 marcarTodosPermisos(true);
             } else {
                 cargarPermisosEnModal(Array.isArray(user.permisos) ? user.permisos : []);
+            }
+
+            if (user.almacenes_traspasos && Array.isArray(user.almacenes_traspasos) && user.almacenes_traspasos.length > 0) {
+                renderizarAlmacenesEnModal(user.almacenes_traspasos);
+            } else {
+                renderizarAlmacenesEnModal([]);
+                if (esAdmin || !user.sucursal_id) {
+                    marcarAlmacenesUsuario('todos');
+                } else {
+                    marcarAlmacenesUsuario('sucursal');
+                }
             }
 
             document.getElementById('modalUsuario').classList.remove('hidden');
@@ -1297,8 +1413,10 @@
         function alCambiarRolUsuario(rol) {
             if (rol === 'ADMIN') {
                 marcarTodosPermisos(true);
+                marcarAlmacenesUsuario('activos');
             } else if (rol === 'VENDEDOR_SUCURSAL') {
                 aplicarPerfilRapido('vendedor');
+                marcarAlmacenesUsuario('sucursal');
             }
         }
 
@@ -1330,11 +1448,15 @@
                 });
             }
 
+            const chksAlm = document.querySelectorAll('.chk-almacen-traspaso:checked');
+            const almacenes_traspasos = Array.from(chksAlm).map(c => parseInt(c.value));
+
             const payload = {
                 nombre,
                 usuario,
                 rol,
                 permisos: permisosSeleccionados,
+                almacenes_traspasos,
                 activo,
                 sucursal_id,
                 sucursal_nombre,
@@ -1364,6 +1486,9 @@
                     cerrarModalUsuario();
                     mostrarAlerta('success', data.mensaje || 'Usuario guardado correctamente.');
                     await cargarListaUsuarios();
+                    if (typeof cargarCatalogosTraspaso === 'function') {
+                        cargarCatalogosTraspaso();
+                    }
                     if (currentUser && currentUser.usuario.toLowerCase() === usuario.toLowerCase()) {
                         verificarSesion();
                     }

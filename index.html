@@ -2441,8 +2441,15 @@
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                                         Nuevo Traspaso
                                     </button>
+                                    <button type="button" id="btnVerUltimoTicket" onclick="abrirModalUltimoTicket()" class="hidden inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold py-1.5 px-3 rounded-xl border border-emerald-300 transition shadow-2xs cursor-pointer" title="Ver o reimprimir ticket del último traspaso guardado">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                        📄 Ver Ticket Folio
+                                    </button>
                                 </div>
                             </div>
+
+                        <!-- Banner inline de traspaso generado con éxito (desaparece automáticamente tras unos segundos) -->
+                        <div id="bannerTraspasoExito" class="hidden mb-4 transition-all duration-300"></div>
 
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
@@ -5653,7 +5660,7 @@
                                         <th class="p-2 text-center">Par</th>
                                         <th class="p-2 text-center">Izq/Der</th>
                                         <th class="p-2 text-center text-amber-800">Múltiplo</th>
-                                        <th class="p-2 text-center">Grupo</th>
+                                        <th class="p-2 text-center" title="Línea de productos a la que pertenece el artículo">Línea</th>
                                     </tr>
                                 </thead>
                                 <tbody id="resurtidosTableBody" class="divide-y divide-slate-100">
@@ -6636,6 +6643,29 @@
                             </div>
                         </div>
 
+                    </div>
+                </div>
+
+                <!-- Sección de Almacenes Autorizados para Traspasos -->
+                <div class="pt-3 border-t border-slate-200 space-y-2.5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-black text-slate-900 uppercase tracking-wide">Almacenes Autorizados para Traspasos</span>
+                                <span id="badgeConteoAlmacenesSeleccionados" class="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-black rounded-full">0 seleccionados</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-0.5">Asigna las sucursales y almacenes que este usuario puede seleccionar y consultar en Traspasos. Solo se muestran sucursales operativas (almacenes obsoletos o internos han sido descartados).</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <button type="button" onclick="marcarAlmacenesUsuario('todos')" class="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-[10px] font-bold transition cursor-pointer">Todas las Sucursales + CEDIS</button>
+                            <button type="button" onclick="marcarAlmacenesUsuario('sucursal')" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-[10px] font-bold transition cursor-pointer">CEDIS + Sucursal Asignada</button>
+                            <button type="button" onclick="marcarAlmacenesUsuario('ninguno')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition cursor-pointer">Ninguno</button>
+                        </div>
+                    </div>
+
+                    <!-- Contenedor con grid scrolleable de almacenes -->
+                    <div id="contenedorAlmacenesUsuario" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-2xl max-h-52 overflow-y-auto custom-scrollbar">
+                        <div class="col-span-full py-4 text-center text-xs text-slate-400">Cargando sucursales y almacenes...</div>
                     </div>
                 </div>
 
@@ -7744,25 +7774,25 @@
 
     <!-- SCRIPT DE CONTROL -->
     <!-- SCRIPTS MODULARES -->
-    <script src="/static/js/paleta_tema.js?v=20261012_v1"></script>
-    <script src="/static/js/app_core.js?v=20261013_v3"></script>
-    <script src="/static/js/modulo_dashboard.js?v=20261013_v3"></script>
-    <script src="/static/js/modulo_ventas.js?v=20261012_v1"></script>
-    <script src="/static/js/modulo_pv.js?v=20261012_v1"></script>
-    <script src="/static/js/modulo_administracion.js?v=20261009_v6"></script>
-    <script src="/static/js/modulo_almacen.js?v=20261012_v2"></script>
-    <script src="/static/js/modulo_embarques.js?v=20261012_v3"></script>
-    <script src="/static/js/modulo_compras.js?v=20261012_v1"></script>
-    <script src="/static/js/modulo_ciosa.js?v=20261009_v6"></script>
-    <script src="/static/js/modulo_traspasos.js?v=20261012_v2"></script>
-    <script src="/static/js/modulo_buscador_traspasos.js?v=20261012_v2"></script>
-    <script src="/static/js/modulo_buscador_articulos.js?v=20261009_v6"></script>
-    <script src="/static/js/modulo_resurtidos.js?v=20261009_v6"></script>
-    <script src="/static/js/modulo_bot_whatsapp.js?v=20261009_v6"></script>
-    <script src="/static/js/modulo_vendedores_comisiones.js?v=20261009_v6"></script>
-    <script src="/static/js/modulo_config_comisiones.js?v=20261009_v6"></script>
-    <script src="/static/js/modulo_visibilidad.js?v=20261012_v1"></script>
-    <script src="/static/js/modulo_cascos.js?v=20261012_v1"></script>
-    <script src="/static/js/modulo_catalogo_maestro.js?v=20261013_v1"></script>
+    <script src="/static/js/paleta_tema.js?v=20261014_v3"></script>
+    <script src="/static/js/app_core.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_dashboard.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_ventas.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_pv.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_administracion.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_almacen.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_embarques.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_compras.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_ciosa.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_traspasos.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_buscador_traspasos.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_buscador_articulos.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_resurtidos.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_bot_whatsapp.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_vendedores_comisiones.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_config_comisiones.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_visibilidad.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_cascos.js?v=20261014_v3"></script>
+    <script src="/static/js/modulo_catalogo_maestro.js?v=20261014_v3"></script>
 </body>
 </html>

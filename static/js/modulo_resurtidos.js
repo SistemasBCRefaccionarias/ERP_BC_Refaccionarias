@@ -215,16 +215,7 @@ async function ejecutarConsultaResurtidos() {
         actualizarProgreso(85, 'Procesando resultados...', 'Formateando datos para visualización', 'bg-amber-600');
         await renderYield();
 
-        datosResurtidosActual = (data.articulos || []).map(item => {
-            const stockCed = Number(item.stock_cedis || 0);
-            if (stockCed <= 1) {
-                item.cantidad_surtir = 0;
-                item.cantidad_sugerida = 0;
-                item.surtir_cedis = 0;
-                item.badge_as = false;
-            }
-            return item;
-        });
+        datosResurtidosActual = data.articulos || [];
         actualizarIndicadoresResurtido(data.totales);
         filtrarYRenderizarTablaResurtidos();
 
@@ -287,7 +278,8 @@ function filtrarYRenderizarTablaResurtidos() {
             const clave = (item.clave || '').toUpperCase();
             const nom = (item.nombre || '').toUpperCase();
             const eq = (item.equivalencia || '').toUpperCase();
-            if (!clave.includes(q) && !nom.includes(q) && !eq.includes(q)) {
+            const lin = (item.linea || '').toUpperCase();
+            if (!clave.includes(q) && !nom.includes(q) && !eq.includes(q) && !lin.includes(q)) {
                 return false;
             }
         }
@@ -401,6 +393,7 @@ function renderizarPaginaTablaResurtidos() {
                     <span>${it.nombre}</span>
                     ${badgeOrigenHtml}
                 </div>
+                ${it.linea ? `<div class="mt-0.5"><span class="inline-flex items-center px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-slate-100 text-slate-700 border border-slate-200">🏷️ ${it.linea}</span></div>` : ''}
             </td>
             <td class="p-2 text-right font-mono font-bold text-slate-900">${it.venta_piezas}</td>
             <td class="p-2 text-right font-mono text-slate-600">${it.venta_dias_antes}</td>
@@ -416,7 +409,7 @@ function renderizarPaginaTablaResurtidos() {
             <td class="p-2 text-center font-bold text-xs text-slate-600">${it.es_par === 'S' ? '✓' : 'N'}</td>
             <td class="p-2 text-center font-bold text-xs text-slate-600">${it.izq_der === 'S' ? '✓' : 'N'}</td>
             <td class="p-2 text-center">${celdaMultiploHtml}</td>
-            <td class="p-2 text-center font-mono text-slate-400 text-xs">${it.grupo_id || '--'}</td>
+            <td class="p-2 text-center font-mono text-slate-600 text-xs" title="${it.linea || ''}">${it.linea || it.grupo_id || '--'}</td>
         `;
         tbody.appendChild(tr);
     });
