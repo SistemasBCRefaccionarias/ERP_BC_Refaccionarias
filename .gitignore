@@ -1,29 +1,5 @@
-# Python
 __pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-
-# Datos locales y secretos
-*.db
-*.db-wal
-*.db-shm
-.flask_secret
-app/.microsip_conn.json
-config_empresas.json
-
-# Registros y artefactos generados
 *.log
-index.html.gz
-screenshot_*.png
-s25_*.png
-test_labelary*.png
-static/facturas_emitidas/*
-*.apk
-*.aab
-*.exe
-
-# Editor / SO
-.vscode/
-.idea/
-Thumbs.db
+*.db
+.env
+.microsip_conn.json

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd" Version="4.0" Serie="BC" Folio="BC-1001" Fecha="2026-10-10T15:21:34" Sello="SIMULATED_SELLO_SAT_69CB7EA7-75B" FormaPago="01" NoCertificado="00001000000504465828" SubTotal="431.03" Moneda="MXN" Total="500.00" TipoDeComprobante="I" Exportacion="01" MetodoPago="PUE" LugarExpedicion="22000">
+    <cfdi:Emisor Rfc="BCR210815AAA" Nombre="BATERIAS Y REFACCIONES TIJUANA SA DE CV" RegimenFiscal="601"/>
+    <cfdi:Receptor Rfc="XAXX010101000" Nombre="PUBLICO EN GENERAL" DomicilioFiscalReceptor="22000" RegimenFiscalReceptor="616" UsoCFDI="S01"/>
+    <cfdi:Conceptos>
+        <cfdi:Concepto ClaveProdServ="25171700" NoIdentificacion="REFACCIONES" Cantidad="1.00" ClaveUnidad="H87" Unidad="PIEZA" Descripcion="REFACCIONES AUTOMOTRICES S/TICKET TEST-100" ValorUnitario="431.03" Importe="431.03" ObjetoImp="02">
+            <cfdi:Impuestos>
+                <cfdi:Traslados>
+                    <cfdi:Traslado Base="431.03" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="68.97"/>
+                </cfdi:Traslados>
+            </cfdi:Impuestos>
+        </cfdi:Concepto>
+    </cfdi:Conceptos>
+    <cfdi:Impuestos TotalImpuestosTrasladados="68.97">
+        <cfdi:Traslados>
+            <cfdi:Traslado Base="431.03" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="68.97"/>
+        </cfdi:Traslados>
+    </cfdi:Impuestos>
+    <cfdi:Complemento>
+        <tfd:TimbreFiscalDigital xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital" xsi:schemaLocation="http://www.sat.gob.mx/TimbreFiscalDigital http://www.sat.gob.mx/sitio_internet/cfd/TimbreFiscalDigital/TimbreFiscalDigitalv11.xsd" Version="1.1" UUID="69CB7EA7-75B7-4EBB-AF84-73253E2231E8" FechaTimbrado="2026-10-10T15:21:34" RfcProvCertif="SED1102088J7" SelloCFD="SELLO_CFDI_69CB7EA7-75B7-4E" NoCertificadoSAT="00001000000503938001" SelloSAT="SELLO_PAC_69CB7EA7-75B7-4E"/>
+    </cfdi:Complemento>
+</cfdi:Comprobante>
