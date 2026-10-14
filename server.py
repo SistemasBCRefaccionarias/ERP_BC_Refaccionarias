@@ -38,6 +38,11 @@ for _ruta_creds in [
         except Exception:
             pass
 
+os.environ.setdefault("MICROSIP_UID", "SYSDBA")
+os.environ.setdefault("MICROSIP_PWD", "bc6580.1")
+os.environ.setdefault("MICROSIP_SERVER", "192.168.1.127")
+os.environ.setdefault("ERP_BASE_DIR", BASE_DIR)
+
 from app import create_app
 
 app = create_app()

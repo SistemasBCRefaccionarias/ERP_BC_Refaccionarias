@@ -11,7 +11,7 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":6060" ^| findstr "LISTENING
 timeout /t 2 /nobreak > nul
 echo.
 echo [2/3] Descargando última versión compilada desde GitHub...
-git pull origin production
+git pull origin main 2>nul || git pull origin production
 if %errorlevel% neq 0 (
     echo.
     echo ❌ ERROR: No se pudo descargar la actualización desde GitHub.
