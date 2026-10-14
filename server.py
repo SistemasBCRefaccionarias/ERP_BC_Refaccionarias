@@ -61,11 +61,16 @@ if __name__ == '__main__':
     port = int(os.environ.get("PORT", os.environ.get("ERP_PORT", sys.argv[1] if len(sys.argv) > 1 and sys.argv[1].isdigit() else 6060)))
     ip_actual = obtener_ip_local()
 
-    # Si es el servidor central (192.168.1.253), abre a toda la red (0.0.0.0)
-    # En cualquier otra máquina (tu PC local Z840), escucha ÚNICAMENTE en 127.0.0.1 (privado/bloqueado a la red)
+    # En la PC de desarrollo de Carlos (DESKTOP-UVTSJM5 / Z840 / 192.168.1.245) escucha ÚNICAMENTE en 127.0.0.1 (privado/bloqueado a la red).
+    # En el servidor de producción o cualquier otra máquina, escucha en 0.0.0.0 (abierto a la red).
+    es_pc_desarrollo = (
+        os.environ.get("COMPUTERNAME", "").upper() == "DESKTOP-UVTSJM5"
+        or os.environ.get("USERNAME", "").upper() == "Z840"
+        or ip_actual == "192.168.1.245"
+    )
     host = os.environ.get("ERP_HOST")
     if not host:
-        host = "0.0.0.0" if ip_actual == "192.168.1.253" else "127.0.0.1"
+        host = "127.0.0.1" if es_pc_desarrollo else "0.0.0.0"
 
     print("==================================================")
     if host == "127.0.0.1":
