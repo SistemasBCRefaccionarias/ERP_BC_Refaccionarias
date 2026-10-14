@@ -2,9 +2,32 @@ import os
 import html
 import datetime
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+
+def obtener_ruta_logo(data):
+    """
+    Localiza el logotipo oficial de la empresa (BC Refaccionarias o Refaccionaria Total).
+    """
+    sucursal = str(data.get('sucursal_nombre', '')).upper()
+    empresa = str(data.get('empresa', '')).upper()
+
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+    es_rt = ('RT' in sucursal or 'TOTAL' in sucursal or 'RT' in empresa or 'TOTAL' in empresa)
+    logo_filename = 'logo rt.png' if es_rt else 'logo bc.png'
+
+    candidatos = [
+        os.path.join(base_dir, logo_filename),
+        os.path.join(base_dir, 'logo bc.png'),
+        os.path.join(base_dir, 'static', 'img', logo_filename),
+        os.path.join(base_dir, 'static', 'img', 'logo bc.png')
+    ]
+    for c in candidatos:
+        if os.path.exists(c) and os.path.isfile(c):
+            return c, es_rt
+    return None, es_rt
 
 def generar_pdf_cotizacion(data, output_path):
     """
@@ -67,20 +90,49 @@ def generar_pdf_cotizacion(data, output_path):
     direccion_envio = html.escape(str(data.get('direccion_envio') or '').strip())
     observaciones = html.escape(str(data.get('observaciones') or '').strip())
 
-    # Encabezado corporativo
-    header_data = [
-        [
-            Paragraph("<b><font size=14 color='#0F172A'>BC REFACCIONARIAS</font></b><br/><font size=8 color='#64748B'>Baterías y Componentes de La Laguna S.A. de C.V.<br/>Especialistas en Baterías, Suspensión y Refacciones Automotrices</font>", styles['Normal']),
-            Paragraph(f"<font size=12 color='#0284C7'><b>COTIZACIÓN FORMAL</b></font><br/><b>Folio:</b> {folio}<br/><b>Fecha:</b> {fecha_str}<br/><b>Vigencia:</b> 5 días hábiles", ParagraphStyle('R', parent=styles['Normal'], alignment=2, fontSize=8, leading=11))
+    # Determinar logotipo e información de la empresa
+    ruta_logo, es_rt = obtener_ruta_logo(data)
+    empresa_titulo = "REFACCIONARIA TOTAL" if es_rt else "BC REFACCIONARIAS"
+    empresa_sub = "Refaccionaria Total S.A. de C.V.<br/>Especialistas en Suspensión y Autopartes" if es_rt else "Baterías y Componentes de La Laguna S.A. de C.V.<br/>Especialistas en Baterías, Suspensión y Refacciones Automotrices"
+
+    folio_box_html = f"<font size=11 color='#0284C7'><b>COTIZACIÓN FORMAL</b></font><br/><b>Folio:</b> {folio}<br/><b>Fecha:</b> {fecha_str}<br/><b>Vigencia:</b> 5 días hábiles"
+    folio_style = ParagraphStyle('R', parent=styles['Normal'], alignment=2, fontSize=8, leading=11)
+
+    if ruta_logo:
+        # Ajustar dimensiones conservando proporción
+        if es_rt:
+            img_logo = RLImage(ruta_logo, width=128, height=20)
+        else:
+            img_logo = RLImage(ruta_logo, width=120, height=35)
+
+        header_data = [
+            [
+                img_logo,
+                Paragraph(f"<b><font size=11 color='#0F172A'>{empresa_titulo}</font></b><br/><font size=7.5 color='#64748B'>{empresa_sub}<br/>Torreón, Coahuila &bull; Gómez Palacio, Dgo.</font>", styles['Normal']),
+                Paragraph(folio_box_html, folio_style)
+            ]
         ]
-    ]
-    h_tab = Table(header_data, colWidths=[330, 210])
-    h_tab.setStyle(TableStyle([
-        ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-    ]))
+        h_tab = Table(header_data, colWidths=[130, 220, 190])
+        h_tab.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+            ('TOPPADDING', (0,0), (-1,-1), 0),
+        ]))
+    else:
+        header_data = [
+            [
+                Paragraph(f"<b><font size=14 color='#0F172A'>{empresa_titulo}</font></b><br/><font size=8 color='#64748B'>{empresa_sub}<br/>Torreón, Coahuila &bull; Gómez Palacio, Dgo.</font>", styles['Normal']),
+                Paragraph(folio_box_html, folio_style)
+            ]
+        ]
+        h_tab = Table(header_data, colWidths=[330, 210])
+        h_tab.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ]))
+
     story.append(h_tab)
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 8))
 
     # Tarjeta de Datos Cliente y Sucursal
     datos_cliente_html = f"<b>Cliente:</b> {cliente_nom}<br/><b>Tipo:</b> {tipo_cliente}<br/><b>Teléfono:</b> {telefono}<br/><b>Modalidad:</b> {entrega}"
@@ -210,3 +262,4 @@ def generar_pdf_cotizacion(data, output_path):
 
     doc.build(story)
     return total_neto
+

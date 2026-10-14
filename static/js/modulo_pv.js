@@ -2077,12 +2077,18 @@ function pvAbrirVentanaImpresionCotizacion(data, payload) {
     const ivaVal = totalFinal - (totalFinal / 1.16);
     const subSinIva = totalFinal - ivaVal;
 
+    const sucNom = (payload.sucursal_nombre || '').toUpperCase();
+    const esRt = sucNom.includes('RT') || sucNom.includes('TOTAL');
+    const logoTag = esRt ? 'rt' : 'bc';
+    const nombreEmpresa = esRt ? 'REFACCIONARIA TOTAL' : 'BC REFACCIONARIAS';
+    const razonSocial = esRt ? 'Refaccionaria Total S.A. de C.V.' : 'Baterías y Componentes de La Laguna S.A. de C.V.';
+
     ventana.document.write(`
         <!DOCTYPE html>
         <html lang="es">
         <head>
             <meta charset="UTF-8">
-            <title>Cotización ${data.folio} - BC Refaccionarias</title>
+            <title>Cotización ${data.folio} - ${nombreEmpresa}</title>
             <style>
                 @page { size: letter; margin: 12mm 15mm; }
                 * { box-sizing: border-box; }
@@ -2143,8 +2149,8 @@ function pvAbrirVentanaImpresionCotizacion(data, payload) {
                     padding-bottom: 16px;
                     margin-bottom: 18px;
                 }
-                .company-title { font-size: 22px; font-weight: 900; color: #0f172a; margin: 0; }
-                .company-sub { font-size: 11px; color: #64748b; margin-top: 4px; line-height: 1.4; }
+                .company-title { font-size: 20px; font-weight: 900; color: #0f172a; margin: 0; }
+                .company-sub { font-size: 11px; color: #64748b; margin-top: 3px; line-height: 1.4; }
                 .quote-header-right { text-align: right; }
                 .quote-badge { font-size: 16px; font-weight: 900; color: #0284c7; margin-bottom: 4px; }
                 .quote-meta { font-size: 11px; color: #475569; line-height: 1.4; }
@@ -2261,12 +2267,15 @@ function pvAbrirVentanaImpresionCotizacion(data, payload) {
 
             <div class="sheet">
                 <div class="header">
-                    <div>
-                        <h1 class="company-title">BC REFACCIONARIAS</h1>
-                        <div class="company-sub">
-                            <strong>Baterías y Componentes de La Laguna S.A. de C.V.</strong><br>
-                            Especialistas en Baterías, Suspensión y Refacciones Automotrices<br>
-                            Torreón, Coahuila &bull; Gómez Palacio, Dgo.
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <img src="/api/logo/${logoTag}" alt="Logo ${nombreEmpresa}" style="height: 50px; max-width: 165px; object-fit: contain;">
+                        <div>
+                            <h1 class="company-title">${nombreEmpresa}</h1>
+                            <div class="company-sub">
+                                <strong>${razonSocial}</strong><br>
+                                Especialistas en Baterías, Suspensión y Refacciones Automotrices<br>
+                                Torreón, Coahuila &bull; Gómez Palacio, Dgo.
+                            </div>
                         </div>
                     </div>
                     <div class="quote-header-right">
