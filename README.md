@@ -1,6 +1,6 @@
 # ERP BC Refaccionarias - Servidor de Producción
 
-Versión compilada generada el: **2026-10-14 09:29:36**
+Versión compilada generada el: **2026-10-14 09:46:16**
 Paquete protegido con binarios de máquina C (.pyd).
 
 ### Instrucciones de Operación en el Servidor:
