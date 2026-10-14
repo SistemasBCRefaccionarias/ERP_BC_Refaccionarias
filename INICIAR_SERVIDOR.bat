@@ -7,5 +7,5 @@ echo   ERP BC REFACCIONARIAS - SERVIDOR CENTRAL
 echo   Modo: Producción (Binarios Compilados C)
 echo ========================================================
 echo.
-python server.py 5000
+python server.py 6060
 pause

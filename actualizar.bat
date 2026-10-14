@@ -27,7 +27,7 @@ echo.
 echo ========================================================
 echo   ✅ ¡SISTEMA ACTUALIZADO Y EN EJECUCIÓN!
 echo   Accede desde cualquier PC de la red en:
-echo   http://192.168.1.253:5000
+echo   http://192.168.1.253:6060
 echo ========================================================
 echo.
 timeout /t 5

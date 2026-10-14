@@ -33,7 +33,7 @@ if __name__ == '__main__':
         except Exception:
             return "192.168.1.12"
 
-    port = int(os.environ.get("PORT", os.environ.get("ERP_PORT", sys.argv[1] if len(sys.argv) > 1 and sys.argv[1].isdigit() else 5000)))
+    port = int(os.environ.get("PORT", os.environ.get("ERP_PORT", sys.argv[1] if len(sys.argv) > 1 and sys.argv[1].isdigit() else 6060)))
     ip_actual = obtener_ip_local()
     print("==================================================")
     print(" ERP BC Refaccionarias - Servidor Central Modular")
