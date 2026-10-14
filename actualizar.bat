@@ -6,9 +6,8 @@ echo ========================================================
 echo   ACTUALIZANDO ERP BC REFACCIONARIAS (PRODUCCION)
 echo ========================================================
 echo.
-echo [1/3] Deteniendo servidor en segundo plano...
-taskkill /f /im pythonw.exe 2>nul
-taskkill /f /im python.exe /fi "WINDOWTITLE eq ERP_BC_PROD*" 2>nul
+echo [1/3] Deteniendo servidor en puerto 6060...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":6060" ^| findstr "LISTENING"') do taskkill /f /pid %%a 2>nul
 timeout /t 2 /nobreak > nul
 echo.
 echo [2/3] Descargando última versión compilada desde GitHub...

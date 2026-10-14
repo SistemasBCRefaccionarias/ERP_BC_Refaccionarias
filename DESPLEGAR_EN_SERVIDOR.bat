@@ -8,9 +8,8 @@ echo   Modo: Binarios Nativos Protegidos C (.pyd)
 echo ========================================================
 echo.
 
-echo [1/4] Deteniendo servidores anteriores...
-taskkill /f /im pythonw.exe 2>nul
-taskkill /f /im python.exe 2>nul
+echo [1/4] Deteniendo proceso previo en puerto 6060...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":6060" ^| findstr "LISTENING"') do taskkill /f /pid %%a 2>nul
 timeout /t 2 /nobreak > nul
 
 echo.
@@ -35,3 +34,4 @@ echo   Acceso en red: http://192.168.1.253:6060
 echo ========================================================
 echo.
 pause
+

@@ -18,6 +18,26 @@ if not is_interactive:
     except Exception:
         pass
 
+# Cargar credenciales locales si existen y configurar entorno
+for _ruta_creds in [
+    os.path.join(BASE_DIR, ".microsip_conn.json"),
+    os.path.join(BASE_DIR, "app", ".microsip_conn.json"),
+    r"C:\app\.microsip_conn.json",
+]:
+    if os.path.exists(_ruta_creds):
+        try:
+            import json
+            with open(_ruta_creds, "r", encoding="utf-8") as _f:
+                _d = json.load(_f)
+            if _d.get("pwd") and not os.environ.get("MICROSIP_PWD"):
+                os.environ["MICROSIP_PWD"] = _d["pwd"]
+            if _d.get("uid") and not os.environ.get("MICROSIP_UID"):
+                os.environ["MICROSIP_UID"] = _d["uid"]
+            if _d.get("server") and not os.environ.get("MICROSIP_SERVER"):
+                os.environ["MICROSIP_SERVER"] = _d["server"]
+        except Exception:
+            pass
+
 from app import create_app
 
 app = create_app()
@@ -35,12 +55,23 @@ if __name__ == '__main__':
 
     port = int(os.environ.get("PORT", os.environ.get("ERP_PORT", sys.argv[1] if len(sys.argv) > 1 and sys.argv[1].isdigit() else 6060)))
     ip_actual = obtener_ip_local()
+
+    # Si es el servidor central (192.168.1.253), abre a toda la red (0.0.0.0)
+    # En cualquier otra máquina (tu PC local Z840), escucha ÚNICAMENTE en 127.0.0.1 (privado/bloqueado a la red)
+    host = os.environ.get("ERP_HOST")
+    if not host:
+        host = "0.0.0.0" if ip_actual == "192.168.1.253" else "127.0.0.1"
+
     print("==================================================")
-    print(" ERP BC Refaccionarias - Servidor Central Modular")
-    print(" Módulos: Tablero | Ventas | Compras | Almacén | Administración")
-    print(" Motor WSGI de Producción Multi-hilo: Waitress")
-    print(f" Localhost: http://localhost:{port}")
-    print(f" Acceso Red: http://{ip_actual}:{port}")
+    if host == "127.0.0.1":
+        print(" ERP BC Refaccionarias - Modo Local Privado")
+        print(" Acceso a la red: BLOQUEADO (Solo accesible desde esta PC)")
+        print(f" Tu enlace exclusivo: http://localhost:{port}")
+    else:
+        print(" ERP BC Refaccionarias - Servidor Central de Producción")
+        print(f" Localhost: http://localhost:{port}")
+        print(f" Acceso Red: http://{ip_actual}:{port}")
+    print(" Motor WSGI: Waitress (8 hilos concurrentes)")
     print("==================================================")
     def is_port_in_use(p=port):
         try:
@@ -58,8 +89,8 @@ if __name__ == '__main__':
     while True:
         try:
             from waitress import serve
-            print(f"Servidor Waitress Iniciado en http://0.0.0.0:{port} (8 hilos concurrentes)...")
-            serve(app, host='0.0.0.0', port=port, threads=8)
+            print(f"Servidor Waitress Iniciado en http://{host}:{port}...")
+            serve(app, host=host, port=port, threads=8)
         except Exception as e:
             print(f"Aviso en Waitress: {e}. Reintentando arranque en 3 segundos...")
             time.sleep(3)
